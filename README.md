@@ -13,9 +13,11 @@ Public page: https://ryanclinton.uk/cloudyoke/
 
 **Early development. Nothing is built yet.** The first sensor hardware is due
 between 13 and 18 November 2026, and the first station goes up in Ballymoney,
-County Antrim, Northern Ireland. There is no firmware or server code in this
-repository yet: the design comes first, then the first station's results
-decide the hardware.
+County Antrim, Northern Ireland. There is no firmware yet. The server side is
+only the minimum the first station needs: a receiver that stores its readings
+and a script that graphs a night ([server/](server/README.md)), tested with a
+pretend station. The first station's results decide the hardware. Next
+milestone: [first observational data](https://github.com/Ryan-Clinton/cloudyoke/milestone/1).
 
 | | |
 |---|---|

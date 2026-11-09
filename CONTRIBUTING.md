@@ -44,5 +44,6 @@ hardware/bom.md    parts, prices, traps and wiring
 firmware/          the ESP32 code (not started)
 bridges/           readers for existing sensors, ASCOM Alpaca first (not started)
 schemas/           the reading format as JSON Schema, with examples; check with python schemas/check.py
-server/            ingest, storage and judging (not started)
+server/            receiver and night graph for the first station; judging and the rest to come
+tests/             python -m unittest discover -s tests
 ```
