@@ -115,8 +115,9 @@ about: open a discussion.
 
 ## Licence
 
-Not chosen yet. The code and hardware licence, and the data licence, are both
-settled before any outside station sends a reading.
+The code and documentation in this repository are under the [MIT licence](LICENSE).
+The licence for the network's readings is not chosen yet; it is settled before
+any outside station sends a reading ([issue 8](https://github.com/Ryan-Clinton/cloudyoke/issues/8)).
 
 cloudyoke is run by Ryan Clinton (ryan@ryanclinton.uk), and grew out of
 telescopeyoke, his telescope project.
