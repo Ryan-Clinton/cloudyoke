@@ -373,7 +373,9 @@ rate-limits the route, as it does `/forms/send`.
 ### 5.3.1 Reference sources: airport reports
 
 Airport weather reports (METARs) are collected alongside the stations from the
-start, City of Derry (EGAE) first, as a check on the stations (section 4). A
+start as a check on the stations (section 4): City of Derry (EGAE), Belfast
+International (EGAA), Belfast City (EGAC) and Prestwick (EGPK) since 10
+November 2026. The two Belfast airports report AUTO NCD at night, kept as NCD. A
 reference source is not a station: it is never on the map as one, never
 judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
 
