@@ -53,6 +53,17 @@ still learning, faulty or silent is never shown as clear. Full detail, with
 the reading format, registration, calibration safeguards and privacy rules:
 [docs/spec.md](docs/spec.md).
 
+## Already running a cloud sensor?
+
+The ESP32 station is the reference design, not a condition of joining.
+Observatories already running an AAG CloudWatcher, a Boltwood or another
+ASCOM ObservingConditions device can send readings through a small bridge on
+their own PC or Raspberry Pi: outgoing HTTPS only, read-only, no open ports,
+nothing changed in their setup. The first bridge (ASCOM Alpaca) needs an
+owner willing to test it: see [spec §3.1](docs/spec.md#31-existing-sensors) and
+the issues. Sensors that only report their maker's clear/cloudy verdict are
+welcome too, labelled as such and kept apart from measured readings.
+
 ## Open questions
 
 - **Thin cloud:** whether a £20 station tells thin high cloud from clear sky.
@@ -77,6 +88,11 @@ Each stage has a gate it must pass before the next ([spec §9](docs/spec.md#9-st
 4. **Open to anyone:** build guide, one-click web installer, parts lists by
    country, once the hardware and self-calibration have passed on at least
    three stations and the server has been load-tested.
+
+Alongside stages 1 to 3, a second track brings in **existing sensors**: the
+reading format takes bridges first, then one ASCOM Alpaca bridge proven
+against a volunteer's real sensor, then a guide someone else can install it
+from.
 
 ## Hardware
 

@@ -101,6 +101,57 @@ Things the research turned up that the build guide must say:
 - **Power:** a 1 A supply, because WiFi transmit peaks reach about 260 mA.
 - **The ESP32 is rated to −40 °C;** cold is not the problem, damp is.
 
+### 3.1 Existing sensors
+
+The ESP32 station is the project's reference design, not a condition of
+joining. Many observatories already run cloud sensors that are installed,
+powered and logging: the Lunatico AAG CloudWatcher and the Boltwood Cloud
+Sensor among them. Their owners can send to the network without replacing
+anything.
+
+- **A bridge, not new hardware.** A small program on the observatory's own PC
+  or Raspberry Pi reads the sensor locally and POSTs readings to the network
+  over HTTPS, in the format of section 5.2. It only makes outgoing
+  connections: no open ports, no remote access to the observatory, and it
+  only reads, so it never touches roof control or anything else using the
+  sensor.
+- **One standard first.** ASCOM's ObservingConditions interface carries
+  `SkyTemperature`, `Temperature`, `Humidity` and `CloudCover`, and both the AAG
+  and the Boltwood have drivers for it. ASCOM Alpaca serves the same interface
+  over HTTP, so one Alpaca bridge works from Windows, Linux or a Raspberry Pi
+  and covers any compatible device. INDI (the AAG's `indi_aagcloudwatcher_ng`)
+  and the Boltwood one-line data file are later bridges, built when an owner
+  wants one and can test it.
+- **Built against real hardware.** No bridge is called working until it has
+  run against a real sensor at a volunteer's observatory for a few weeks. One
+  bridge proven beats ten written blind.
+
+**Measurements and verdicts stay apart.** Sensors report different things,
+and some report a judgement rather than a measurement:
+
+| What | Reference station | A third-party sensor |
+|---|---|---|
+| Sky temperature | always, raw | if the driver gives it; raw or already corrected, said which |
+| Air temperature | always | if given |
+| Humidity | with a BME280 | if given |
+| Cloud cover or clear/cloudy | judged by the server | may be given, from the maker's own thresholds |
+| Calibration | the server's (section 4) | the maker's, set by its owner |
+
+So each station is registered as one of two kinds:
+
+- **Measuring:** it sends sky and air temperature. The server judges it with
+  its own method (section 4), exactly as a reference station, and its setup row
+  records the sensor model and whether its sky reading arrives raw or already
+  corrected.
+- **Reporting:** it sends only the maker's own verdict (a cloud cover figure
+  or a clear/cloudy state set by thresholds its owner chose). The verdict is
+  kept and shown with its origin, but never treated as a measured fraction of
+  the sky, never compared with raw readings, and never used to test or tune
+  the network's own method.
+
+A measuring third-party station that also sends its maker's verdict keeps both:
+the server's judgement is the one shown, the maker's is stored beside it.
+
 ## 4. Telling clear from cloud
 
 The unit sends raw numbers (sky temperature, air temperature, humidity); the
@@ -194,6 +245,12 @@ rate-limits the route, as it does `/forms/send`.
 - **Required:** `schema`, `unit`, `fw`, `boot`, `seq`, `t`, `t_ok`, `readings.sky_c`,
   `readings.air_c`. **Optional:** everything else; a unit without humidity
   (a BMP280) leaves it out, never sends 0.
+- **From a bridge (section 3.1)** the same format adds `"source"` (for example
+  `"ascom-alpaca"`), `"sky_kind": "raw"` or `"corrected"`, and, if the sensor
+  gives one, `"reported": {"cloud_cover": 50, "state": "cloudy", "by": "Boltwood III"}`
+  with the maker's verdict and its origin. A reporting station sends `reported`
+  and no `readings`; for it, `readings.sky_c` and `readings.air_c` aren't
+  required. `fw` is the bridge's version, `boot` and `seq` work as above.
 - **Times.** `t` is when the unit took the reading, from NTP. `t_ok` is false
   until the clock has synced since boot; such readings are stored but never
   judged. The server adds its own receipt time on arrival.
@@ -293,6 +350,19 @@ come here instead.
 | 5 | Regions run themselves: a group (a society, a county) looks after its own hosts, the server stays one | the map past Ireland | an aspiration, not a plan |
 
 The page at stage 0 promises only stage 1. Stages 2 to 5 are "what I hope".
+
+**A second track, alongside stages 1 to 3: existing sensors (section 3.1).**
+
+| Step | What | Gate |
+|---|---|---|
+| E1 | The reading format takes bridges (section 5.2) | before the ingest service is written |
+| E2 | One ASCOM Alpaca bridge, run against a volunteer's real sensor for a few weeks | its readings arrive complete and its station is judged like a reference one, or labelled reporting |
+| E3 | A short install guide for that bridge | someone other than its author installs it from the guide alone |
+
+Existing sensors may give the network spread-out readings sooner than new
+stations would, but only if owners take part; nothing is assumed about how
+many will. Further bridges (INDI, the Boltwood file) come only when an owner
+asks for one and can test it.
 
 ### 9.1 Before any arrival warning is shown
 

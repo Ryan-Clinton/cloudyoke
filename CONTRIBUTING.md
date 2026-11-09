@@ -23,6 +23,8 @@ makes this the best time to question the design.
   against what you've seen.
 - Places upwind (west and north-west coasts of Ireland) where a station could
   go.
+- Owning an AAG CloudWatcher, a Boltwood or another ASCOM ObservingConditions
+  sensor, and being willing to test the first bridge against it.
 
 ## Privacy
 
@@ -40,5 +42,6 @@ is a real reason to split it.
 docs/spec.md       the design: station, judging, readings, privacy, stages, sources
 hardware/bom.md    parts, prices, traps and wiring
 firmware/          the ESP32 code (not started)
+bridges/           readers for existing sensors, ASCOM Alpaca first (not started)
 server/            ingest, storage and judging (not started)
 ```
