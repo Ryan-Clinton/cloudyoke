@@ -25,6 +25,7 @@ from pathlib import Path
 MAX_BODY = 256 * 1024                 # a WiFi drop's worth of buffered readings (360) fits easily
 MAX_READINGS = 400
 QUEUE_SIZE = 10_000
+WRITE_WAIT = 10                       # seconds a send waits for its readings to reach disk before answering
 
 log = logging.getLogger("receiver")
 
@@ -93,19 +94,44 @@ class Store:
             self.seen.get(unit, set()).discard((boot, seq))
 
     def _writer(self):
+        # Never dies: a failed write is logged, its claim released (so the station's resend is taken), and the
+        # sender told through the item's result, so a reading is only answered "stored" once it is on disk
         while True:
-            r = self.queue.get()
-            day = r["t"][:10]
-            folder = self.root / r["unit"]
-            folder.mkdir(parents=True, exist_ok=True)
-            line = (json.dumps(r, separators=(",", ":"), ensure_ascii=False) + "\n").encode("utf-8")
-            # One write per line with O_APPEND, so a crash can tear at most the last line, never mix two
-            fd = os.open(folder / f"{day}.jsonl", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+            item = self.queue.get()
             try:
-                os.write(fd, line)
+                folder = self.root / item.unit
+                folder.mkdir(parents=True, exist_ok=True)
+                # One write per line with O_APPEND, so a crash can tear at most the last line, never mix two
+                fd = os.open(folder / f"{item.day}.jsonl", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+                try:
+                    os.write(fd, item.line)
+                finally:
+                    os.close(fd)
+                item.ok = True
+            except Exception:
+                log.exception("couldn't store a reading from %s; it will be taken when resent", item.unit)
+                self.release(item.unit, item.boot, item.seq)
+                item.ok = False
             finally:
-                os.close(fd)
-            self.queue.task_done()
+                item.done.set()
+                self.queue.task_done()
+
+
+class Item:
+    """One reading on its way to disk, already serialised, so nothing in the writer can fail on its content."""
+
+    def __init__(self, unit, reading, received):
+        when = datetime.fromisoformat(reading["t"].replace("Z", "+00:00"))
+        when = when.astimezone(timezone.utc) if when.tzinfo else when.replace(tzinfo=timezone.utc)
+        self.unit, self.boot, self.seq, self.day = unit, reading["boot"], reading["seq"], when.strftime("%Y-%m-%d")
+        # ensure_ascii keeps any odd string (a lone surrogate, say) as an escape, so encoding can't fail
+        self.line = (json.dumps({**reading, "received": received}, separators=(",", ":"), allow_nan=False) + "\n").encode("ascii")
+        self.done = threading.Event()
+        self.ok = None
+
+
+def no_constants(name):
+    raise ValueError(f"{name} is not a number this format allows")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -135,8 +161,9 @@ class Handler(BaseHTTPRequestHandler):
         if not 0 < length <= MAX_BODY:
             return self.reply(413, {"ok": False})
         try:
-            body = json.loads(self.rfile.read(length))
-        except (ValueError, UnicodeDecodeError):
+            # NaN and Infinity are refused here, so no non-finite number is ever stored or drawn
+            body = json.loads(self.rfile.read(length), parse_constant=no_constants)
+        except (ValueError, UnicodeDecodeError, RecursionError):
             return self.reply(400, {"ok": False, "why": "not JSON"})
         readings = body if isinstance(body, list) else [body]
         if not 0 < len(readings) <= MAX_READINGS:
@@ -152,19 +179,26 @@ class Handler(BaseHTTPRequestHandler):
             if why:
                 log.warning("%s: refused a send: %s", unit, why)
                 return self.reply(400, {"ok": False, "why": why})
-        stored = duplicates = 0
+        duplicates = 0
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        items = []
         for r in readings:
             if not self.store.claim(unit, r["boot"], r["seq"]):
                 duplicates += 1
                 continue
+            item = Item(unit, r, now)
             try:
-                self.store.queue.put_nowait({**r, "received": now})
+                self.store.queue.put_nowait(item)
             except queue.Full:
                 self.store.release(unit, r["boot"], r["seq"])
                 log.warning("queue full: asked %s to resend", unit)
-                return self.reply(503, {"ok": False, "stored": stored, "why": "busy, send again later"})
-            stored += 1
+                break
+            items.append(item)
+        # Answer only once every queued reading is on disk (or has failed), so "stored" is never a guess
+        stored = sum(1 for it in items if it.done.wait(WRITE_WAIT) and it.ok)
+        if stored < len(readings) - duplicates:
+            return self.reply(503, {"ok": False, "stored": stored, "duplicates": duplicates,
+                                    "why": "not everything was stored; send again later, already-stored readings come back as duplicates"})
         self.reply(200, {"ok": True, "stored": stored, "duplicates": duplicates})
 
     def log_message(self, *args):

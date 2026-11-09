@@ -10,6 +10,7 @@ Readings flagged by the station are drawn as small marks below the chart. Standa
 import argparse
 import html
 import json
+import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -22,7 +23,10 @@ def value(v):
     """A reading's number, whether a reference station's plain number or a bridge's {"value": ...}."""
     if isinstance(v, dict):
         v = v.get("value")
-    return v if isinstance(v, (int, float)) else None
+    # Booleans are ints in Python, and NaN or infinity would wreck the scale: neither is a reading
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return None
+    return v
 
 
 def load(root, unit, night):
@@ -69,11 +73,13 @@ def draw(unit, start, end, rows):
     gap = series(rows, lambda r: (value(readings(r).get("sky_c")) - value(readings(r).get("air_c")))
                  if value(readings(r).get("sky_c")) is not None and value(readings(r).get("air_c")) is not None else None)
     values = [v for s in (sky, air, gap) for run in s for _, v in run]
-    lo = min(values + [-40.0]) // 10 * 10
-    hi = -(-max(values + [20.0]) // 10) * 10
+    # The scale is clamped to -100..100 °C, wider than any sky or air reading, so a wild value can't stretch the
+    # chart or make the gridline loop below run for ever; anything beyond is drawn at the edge
+    lo = max(-100.0, min(values + [-40.0]) // 10 * 10)
+    hi = min(100.0, -(-max(values + [20.0]) // 10) * 10)
     span = (end - start).total_seconds()
     x = lambda t: LEFT + (t - start).total_seconds() / span * (W - LEFT - RIGHT)
-    y = lambda v: TOP + (hi - v) / (hi - lo) * (H - TOP - BOTTOM)
+    y = lambda v: TOP + (hi - min(max(v, lo), hi)) / (hi - lo) * (H - TOP - BOTTOM)
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" font-family="sans-serif" font-size="12">',
            f'<rect width="{W}" height="{H}" fill="#fbf5ee"/>',
            f'<text x="{LEFT}" y="18" font-weight="bold">{html.escape(unit)} · night of {start.date().isoformat()} (UTC) · '

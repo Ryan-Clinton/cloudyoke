@@ -3,6 +3,7 @@
     python -m unittest discover -s tests
 """
 import json
+import re
 import sys
 import tempfile
 import threading
@@ -104,6 +105,27 @@ class ReceiverTest(unittest.TestCase):
         finally:
             store.queue = original
 
+    def test_nan_and_infinity_are_refused(self):
+        for word in (b"NaN", b"Infinity", b"-Infinity"):
+            body = json.dumps(self.reading(1)).replace('"sky_c": -', '"sky_c": X').encode()
+            body = re.sub(rb'"sky_c": X[0-9.]+', b'"sky_c": ' + word, body)
+            self.assertEqual(self.post(None, raw=body)[0], 400, word)
+        self.assertEqual(self.stored(), [])
+
+    def test_odd_strings_are_stored_safely(self):
+        r = self.reading(1, fw="\ud800-lone-surrogate")
+        body = json.dumps(r).encode()              # json escapes the lone surrogate as \\ud800
+        self.assertEqual(self.post(None, raw=body)[0], 200)
+        self.assertEqual(self.stored()[0]["fw"], "\ud800-lone-surrogate")
+
+    def test_a_failed_write_is_reported_and_the_writer_lives(self):
+        (self.data / "cy-0001").write_text("a file where the station's folder should be")
+        status, answer = self.post(self.reading(1))
+        self.assertEqual((status, answer["stored"]), (503, 0))
+        (self.data / "cy-0001").unlink()
+        self.assertEqual(self.post(self.reading(1))[1], {"ok": True, "stored": 1, "duplicates": 0})
+        self.assertEqual(len(self.stored()), 1)
+
     def test_pretend_night_end_to_end_and_graph(self):
         readings = list(pretend_station.night("cy-0001", date(2026, 11, 20)))
         for i in range(0, len(readings), 60):
@@ -130,6 +152,15 @@ class GraphTest(unittest.TestCase):
         self.assertEqual(night_graph.value({"value": -20.5, "age_s": 3, "processing": "raw"}), -20.5)
         self.assertEqual(night_graph.value(-20.5), -20.5)
         self.assertIsNone(night_graph.value(None))
+
+    def test_wild_values_cant_hang_or_stretch_the_graph(self):
+        for bad in (float("nan"), float("inf"), True):
+            self.assertIsNone(night_graph.value(bad))
+        from datetime import datetime, timedelta, timezone
+        start = datetime(2026, 11, 20, 12, tzinfo=timezone.utc)
+        rows = [(start + timedelta(hours=8), {"readings": {"sky_c": 1e300, "air_c": -1e300}, "flags": []})]
+        svg = night_graph.draw("cy-0001", start, start + timedelta(days=1), rows)
+        self.assertLessEqual(svg.count("°C</text>"), 21)
 
 
 if __name__ == "__main__":
