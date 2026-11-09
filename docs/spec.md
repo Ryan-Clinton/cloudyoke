@@ -265,7 +265,12 @@ reflashing.
     codes don't mean a clear sky: NCD (the ceilometer saw nothing directly
     overhead; Belfast International and Belfast City report "AUTO NCD" at night)
     and NSC (no cloud that matters to aviation, which can still be cloud that
-    matters to a camera). Neither is counted as clear.
+    matters to a camera). Neither is counted as clear, and nor is CAVOK.
+    **Derry reports in the day and evening, not all night.** Its 400 reports
+    from 27 October to 9 November 2026 ran from about 05:00 to 22:00 UTC, with
+    5 between 22:00 and 05:00. So it checks a station's evening and dawn, not
+    the middle of the night; the hours it is silent stay silent, never filled
+    in. The airports are kept as reference sources (section 5.6).
 - **Thin high cloud is where the sensor earns its place.** Satellite cloud masks
   at night miss thin cirrus and raise false alarms on 8 to 20% of clear pixels;
   thin cirrus is also what spoils astrophotography frames. The sensor sees some
@@ -364,6 +369,31 @@ rate-limits the route, as it does `/forms/send`.
   simulated units (say 100, 1,000 and 5,000 posting once a minute, with
   reconnect bursts) has been run on the server. If it falls short, the first
   steps are readings every 2 minutes, or several per POST, not a new system.
+
+### 5.3.1 Reference sources: airport reports
+
+Airport weather reports (METARs) are collected alongside the stations from the
+start, City of Derry (EGAE) first, as a check on the stations (section 4). A
+reference source is not a station: it is never on the map as one, never
+judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
+
+- **Fetched every 30 minutes** from the Aviation Weather Center's free JSON
+  API (`server/metar.py`). One request returns at most 400 reports, about 13
+  days at Derry, so history not collected in time is lost.
+- **Each report is kept once,** by its observation time and raw text, so a
+  correction (COR) is kept beside the original. The time kept is the API's
+  `obsTime`, the real observation time; its `reportTime` is rounded (the 22:50
+  report is labelled 23:00).
+- **The raw report is always kept,** with the decoded values as the report
+  states them: the overall code, each layer's cover and base, vertical
+  visibility, visibility (from the API's statute miles, with "or more" kept),
+  weather such as fog, temperature, dew point, wind and pressure.
+- **Nothing is turned into clear or cloudy.** CAVOK, NSC, NCD, CLR, SKC and
+  the API's OVX (sky hidden, as by fog) are kept as given.
+- **Graphs:** `server/metar_graph.py` draws an airport's days (layers by
+  height, the codes, fog, visibility, and closed hours left blank), and
+  `server/night_graph.py --reference EGAE` lines the airport's reports up
+  under a station's night, for the comparison stage 1 needs (section 9.2).
 
 ### 5.4 The install check
 

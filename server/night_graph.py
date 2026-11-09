@@ -66,7 +66,12 @@ def series(rows, pick):
     return runs
 
 
-def draw(unit, start, end, rows):
+STRIP = 44                      # height added under the chart for an airport's reports
+
+
+def draw(unit, start, end, rows, reference=None):
+    """reference, if given, is (icao, reports from metar.load) for an airport strip under the chart."""
+    total_h = H + (STRIP if reference else 0)
     readings = lambda r: r.get("readings") or {}
     sky = series(rows, lambda r: value(readings(r).get("sky_c")))
     air = series(rows, lambda r: value(readings(r).get("air_c")))
@@ -80,8 +85,8 @@ def draw(unit, start, end, rows):
     span = (end - start).total_seconds()
     x = lambda t: LEFT + (t - start).total_seconds() / span * (W - LEFT - RIGHT)
     y = lambda v: TOP + (hi - min(max(v, lo), hi)) / (hi - lo) * (H - TOP - BOTTOM)
-    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" font-family="sans-serif" font-size="12">',
-           f'<rect width="{W}" height="{H}" fill="#fbf5ee"/>',
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {total_h}" font-family="sans-serif" font-size="12">',
+           f'<rect width="{W}" height="{total_h}" fill="#fbf5ee"/>',
            f'<text x="{LEFT}" y="18" font-weight="bold">{html.escape(unit)} · night of {start.date().isoformat()} (UTC) · '
            f'{len(rows)} readings</text>']
     pretend = sum(1 for _, r in rows if r.get("hw") == "pretend")
@@ -113,8 +118,38 @@ def draw(unit, start, end, rows):
         out.append(f'<text x="{W - RIGHT}" y="{key_y}" text-anchor="end" fill="#6f6052">ticks below: {len(flagged)} flagged readings</text>')
     if not rows:
         out.append(f'<text x="{W / 2}" y="{H / 2}" text-anchor="middle" fill="#6f6052">No readings this night</text>')
+    if reference:
+        out.append(reference_strip(reference, x, H + 6))
     out.append("</svg>")
     return "\n".join(out)
+
+
+# How much of the sky each code covers, in eighths, by the METAR definitions; VV and OVX mean the sky is hidden
+OKTAS = {"FEW": 2, "SCT": 4, "BKN": 6, "OVC": 8, "VV": 8, "OVX": 8}
+SHADE = {0: "#ffffff", 2: "#d8cdbf", 4: "#b9a995", 6: "#8f7c68", 8: "#5c4c3d"}
+
+
+def reference_strip(reference, x, top):
+    """An airport's reports under the chart, each shaded by its most-covering layer and lasting until the next
+    report (75 minutes at most, so a closed airport shows as a gap). Codes like CAVOK, NSC and NCD are shown
+    white and labelled as they are: they are not the same as a clear sky (docs/spec.md section 4)."""
+    icao, reports = reference
+    out = [f'<text x="{LEFT}" y="{top + 10}" fill="#6f6052" font-size="11">{html.escape(icao)} airport reports (METAR), '
+           f'a reference, not a reading · darker = more of the sky covered · white = {"/".join(("CAVOK", "NSC", "NCD"))}, '
+           f'not the same as clear · gaps: no reports</text>']
+    for i, (t, r) in enumerate(reports):
+        nxt = reports[i + 1][0] if i + 1 < len(reports) else t + timedelta(minutes=30)
+        t2 = min(nxt, t + timedelta(minutes=75))
+        layers = [OKTAS.get(layer.get("cover"), 0) for layer in r.get("layers") or []]
+        if r.get("vertical_visibility_ft") is not None or r.get("cover") == "OVX":
+            layers.append(8)
+        oktas = max(layers, default=0)
+        x1, x2 = x(t), max(x(t2), x(t) + 1)
+        out.append(f'<rect x="{x1:.1f}" y="{top + 16}" width="{x2 - x1:.1f}" height="16" fill="{SHADE[oktas]}" '
+                   f'stroke="#dccbb6" stroke-width=".5"><title>{html.escape(r["obs_time"])} {html.escape(r["raw"])}</title></rect>')
+    if not reports:
+        out.append(f'<text x="{LEFT}" y="{top + 30}" fill="#6f6052" font-size="11">no reports from {html.escape(icao)} this night</text>')
+    return "".join(out)
 
 
 def main():
@@ -122,9 +157,14 @@ def main():
     ap.add_argument("--data", default="data")
     ap.add_argument("--unit", required=True)
     ap.add_argument("--night", required=True, help="the evening's date, YYYY-MM-DD")
+    ap.add_argument("--reference", help="an airport's ICAO code, e.g. EGAE, to show its reports under the chart")
     a = ap.parse_args()
     start, end, rows = load(a.data, a.unit, datetime.strptime(a.night, "%Y-%m-%d").date())
-    print(draw(a.unit, start, end, rows))
+    reference = None
+    if a.reference:
+        import metar
+        reference = (a.reference.upper(), metar.load(a.data, a.reference.upper(), start, end))
+    print(draw(a.unit, start, end, rows, reference))
 
 
 if __name__ == "__main__":
