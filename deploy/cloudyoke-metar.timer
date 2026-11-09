@@ -1,0 +1,11 @@
+[Unit]
+Description=cloudyoke: collect airport reports every 30 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30min
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target

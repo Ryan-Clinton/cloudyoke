@@ -1,0 +1,22 @@
+# Airport weather reports as a reference source (docs/spec.md 5.3.1): City of Derry (EGAE), every 30 minutes.
+# One API request returns at most about 13 days, so history not collected is lost. Standard library only.
+[Unit]
+Description=cloudyoke: collect City of Derry airport reports (METAR)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cloudyoke
+Group=cloudyoke
+WorkingDirectory=/srv/cloudyoke/code
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --ids EGAE --hours 6
+MemoryMax=200M
+Nice=10
+TimeoutStartSec=2min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/cloudyoke/data
+ProtectHome=yes
+PrivateTmp=yes
