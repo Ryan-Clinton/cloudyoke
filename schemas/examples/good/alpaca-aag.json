@@ -1,0 +1,6 @@
+{"schema": 1, "unit": "cy-0103", "source": "ascom-alpaca", "capabilities": ["sky_temperature", "air_temperature", "humidity", "maker_cloud_cover"],
+ "fw": "bridge-0.1.0", "boot": 3, "seq": 812, "t": "2026-11-20T23:14:05Z", "t_ok": true,
+ "readings": {"sky_c": {"value": -24.1, "age_s": 12, "processing": "unknown"},
+              "air_c": {"value": 5.2, "age_s": 12, "processing": "raw"},
+              "humidity": {"value": 88, "age_s": null, "processing": "raw"}},
+ "maker": {"cloud_cover": 0, "age_s": 12, "by": "AAG CloudWatcher"}, "flags": []}

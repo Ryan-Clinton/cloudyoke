@@ -1,0 +1,3 @@
+{"schema": 1, "unit": "cy-0104", "source": "ascom-alpaca", "capabilities": ["maker_cloud_cover"],
+ "fw": "bridge-0.1.0", "boot": 1, "seq": 2, "t": "2026-11-20T23:14:05Z", "t_ok": true,
+ "maker": {"cloud_cover": 50, "age_s": 30, "by": "Boltwood III"}, "flags": []}

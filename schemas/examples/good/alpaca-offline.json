@@ -1,0 +1,2 @@
+{"schema": 1, "unit": "cy-0103", "source": "ascom-alpaca", "capabilities": ["sky_temperature", "air_temperature", "humidity", "maker_cloud_cover"],
+ "fw": "bridge-0.1.0", "boot": 3, "seq": 813, "t": "2026-11-20T23:15:05Z", "t_ok": true, "flags": ["source_offline"]}

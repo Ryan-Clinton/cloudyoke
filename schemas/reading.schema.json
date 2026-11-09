@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Ryan-Clinton/cloudyoke/blob/main/schemas/reading.schema.json",
+  "title": "cloudyoke reading",
+  "description": "One reading from a station, as POSTed to the network (docs/spec.md 5.2). Schema version 1.",
+  "type": "object",
+  "required": ["schema", "unit", "source", "capabilities", "fw", "boot", "seq", "t", "t_ok", "flags"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": 1},
+    "unit": {"type": "string", "pattern": "^cy-[0-9]{4,}$"},
+    "source": {"enum": ["cloudyoke-esp32", "ascom-alpaca", "indi", "boltwood-file"]},
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["sky_temperature", "air_temperature", "humidity", "pressure", "maker_cloud_cover"]}
+    },
+    "hw": {"type": "string"},
+    "fw": {"type": "string"},
+    "boot": {"type": "integer", "minimum": 0},
+    "seq": {"type": "integer", "minimum": 1},
+    "t": {"type": "string", "format": "date-time"},
+    "t_ok": {"type": "boolean"},
+    "readings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sky_c": {"$ref": "#/$defs/value"},
+        "air_c": {"$ref": "#/$defs/value"},
+        "humidity": {"$ref": "#/$defs/value"},
+        "pressure_hpa": {"$ref": "#/$defs/value"}
+      }
+    },
+    "maker": {
+      "type": "object",
+      "required": ["cloud_cover", "by"],
+      "additionalProperties": false,
+      "properties": {
+        "cloud_cover": {"type": "number", "minimum": 0, "maximum": 100},
+        "age_s": {"type": ["number", "null"], "minimum": 0},
+        "by": {"type": "string"}
+      }
+    },
+    "flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"enum": ["sensor_read_failed", "sky_out_of_range", "air_out_of_range", "wet", "heater_on",
+                         "bmp280", "brownout", "source_offline"]}
+    },
+    "rssi": {"type": "integer"},
+    "uptime_s": {"type": "integer", "minimum": 0}
+  },
+  "$defs": {
+    "value": {
+      "oneOf": [
+        {"type": "number"},
+        {
+          "type": "object",
+          "required": ["value", "age_s", "processing"],
+          "additionalProperties": false,
+          "properties": {
+            "value": {"type": "number"},
+            "age_s": {"type": ["number", "null"], "minimum": 0},
+            "processing": {"enum": ["raw", "corrected", "averaged", "unknown"]}
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "description": "A reference station always measures sky and air, sends plain numbers, and never sends a maker's verdict.",
+      "if": {"properties": {"source": {"const": "cloudyoke-esp32"}}},
+      "then": {
+        "properties": {
+          "capabilities": {"allOf": [{"contains": {"const": "sky_temperature"}}, {"contains": {"const": "air_temperature"}},
+                                     {"not": {"contains": {"const": "maker_cloud_cover"}}}]},
+          "readings": {"additionalProperties": {"type": "number"}}
+        }
+      },
+      "else": {
+        "description": "A bridge sends each value as an object with its age and processing.",
+        "properties": {"readings": {"additionalProperties": {"type": "object"}}}
+      }
+    },
+    {
+      "description": "A driver that is offline sends no values at all.",
+      "if": {"properties": {"flags": {"contains": {"const": "source_offline"}}}},
+      "then": {"not": {"anyOf": [{"required": ["readings"]}, {"required": ["maker"]}]}},
+      "else": {
+        "allOf": [
+          {"if": {"properties": {"capabilities": {"contains": {"const": "sky_temperature"}}}},
+           "then": {"required": ["readings"], "properties": {"readings": {"required": ["sky_c"]}}},
+           "else": {"properties": {"readings": {"not": {"required": ["sky_c"]}}}}},
+          {"if": {"properties": {"capabilities": {"contains": {"const": "air_temperature"}}}},
+           "then": {"required": ["readings"], "properties": {"readings": {"required": ["air_c"]}}},
+           "else": {"properties": {"readings": {"not": {"required": ["air_c"]}}}}},
+          {"if": {"properties": {"capabilities": {"contains": {"const": "humidity"}}}},
+           "then": {"required": ["readings"], "properties": {"readings": {"required": ["humidity"]}}},
+           "else": {"properties": {"readings": {"not": {"required": ["humidity"]}}}}},
+          {"if": {"properties": {"capabilities": {"contains": {"const": "pressure"}}}},
+           "then": {"required": ["readings"], "properties": {"readings": {"required": ["pressure_hpa"]}}},
+           "else": {"properties": {"readings": {"not": {"required": ["pressure_hpa"]}}}}},
+          {"if": {"properties": {"capabilities": {"contains": {"const": "maker_cloud_cover"}}}},
+           "then": {"required": ["maker"]},
+           "else": {"not": {"required": ["maker"]}}}
+        ]
+      }
+    }
+  ]
+}

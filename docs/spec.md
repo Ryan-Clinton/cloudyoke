@@ -107,50 +107,114 @@ The ESP32 station is the project's reference design, not a condition of
 joining. Many observatories already run cloud sensors that are installed,
 powered and logging: the Lunatico AAG CloudWatcher and the Boltwood Cloud
 Sensor among them. Their owners can send to the network without replacing
-anything.
+anything, through a small program on their own PC or Raspberry Pi: a
+**bridge**. No bridge exists yet; the first is being designed, and is not
+called working until it has run against a real sensor at a volunteer's
+observatory for a few weeks.
 
-- **A bridge, not new hardware.** A small program on the observatory's own PC
-  or Raspberry Pi reads the sensor locally and POSTs readings to the network
-  over HTTPS, in the format of section 5.2. It only makes outgoing
-  connections: no open ports, no remote access to the observatory, and it
-  only reads, so it never touches roof control or anything else using the
-  sensor.
-- **One standard first.** ASCOM's ObservingConditions interface carries
-  `SkyTemperature`, `Temperature`, `Humidity` and `CloudCover`, and both the AAG
-  and the Boltwood have drivers for it. ASCOM Alpaca serves the same interface
-  over HTTP, so one Alpaca bridge works from Windows, Linux or a Raspberry Pi
-  and covers any compatible device. INDI (the AAG's `indi_aagcloudwatcher_ng`)
-  and the Boltwood one-line data file are later bridges, built when an owner
-  wants one and can test it.
-- **Built against real hardware.** No bridge is called working until it has
-  run against a real sensor at a volunteer's observatory for a few weeks. One
-  bridge proven beats ten written blind.
+#### 3.1.1 Two ways to reach an ASCOM sensor
 
-**Measurements and verdicts stay apart.** Sensors report different things,
-and some report a judgement rather than a measurement:
+ASCOM's ObservingConditions interface has properties for sky temperature,
+air temperature, humidity and cloud cover. It reaches a program in two ways,
+and an installed ASCOM driver does not by itself give the second:
 
-| What | Reference station | A third-party sensor |
+- **Alpaca:** the device or its software serves the interface over HTTP. The
+  bridge reads it directly, on the same machine or the local network.
+- **A classic Windows COM driver:** the interface exists only inside Windows.
+  To reach it over HTTP, the owner runs ASCOM Remote (part of the ASCOM
+  project) on the observatory PC, set to listen on that machine only, and the
+  bridge reads that. This is documented in the bridge's guide but supported
+  only once a tester with a COM-only setup needs it.
+
+INDI (the AAG's `indi_aagcloudwatcher_ng`) and the Boltwood one-line data file
+are later bridges, built when an owner wants one and can test it.
+
+#### 3.1.2 What a bridge may and may not do
+
+A bridge sits next to equipment that may close an observatory roof, so its
+limits are a contract, enforced in its code and tested:
+
+- **It only reads,** from an allowlist: the ObservingConditions properties in
+  3.1.3, `TimeSinceLastUpdate` for each, `Connected` (read, never written),
+  and `Name`, `Description`, `DriverInfo`, `DriverVersion` and
+  `InterfaceVersion`. Over Alpaca that means GET requests to those endpoints
+  and nothing else.
+- **It never writes.** No PUT of any kind: it never sets `Connected`,
+  `AveragePeriod` or any other property, never calls `Refresh`, `Action`,
+  `CommandBlind`, `CommandBool` or `CommandString`, and never connects or
+  disconnects the device. If the device isn't connected (because the
+  observatory's own software isn't running), the bridge reports the station
+  offline and waits.
+- **It is gentle.** At most one request at a time, one full read a minute, a
+  5-second timeout on each request, and backing off to every 10 minutes after
+  repeated failures.
+- **It is not a safety device.** The network's readings are never fed back
+  into an observatory's safety monitor or roof control. That would need its
+  own design and the owner's explicit choice, and is out of scope.
+- **Outgoing only.** It makes HTTPS connections out to the network and opens
+  no ports; nothing on the internet can reach the observatory through it.
+
+#### 3.1.3 What a station can do: capabilities, not kinds
+
+Sensors report different things, and some report a judgement rather than a
+measurement. Each station declares, at registration and in every reading,
+which of these it supplies:
+
+| Capability | Reference station | A third-party sensor, if its driver gives it |
 |---|---|---|
-| Sky temperature | always, raw | if the driver gives it; raw or already corrected, said which |
-| Air temperature | always | if given |
-| Humidity | with a BME280 | if given |
-| Cloud cover or clear/cloudy | judged by the server | may be given, from the maker's own thresholds |
-| Calibration | the server's (section 4) | the maker's, set by its owner |
+| `sky_temperature` | always, raw | `SkyTemperature` |
+| `air_temperature` | always | `Temperature` |
+| `humidity` | with a BME280 | `Humidity` |
+| `maker_cloud_cover` | never | `CloudCover`, from the maker's own thresholds |
 
-So each station is registered as one of two kinds:
+The bridge works out the list by trying each property once at start-up and
+again every hour: one that answers "not implemented" (ASCOM's
+PropertyNotImplementedException, Alpaca error 0x400) is simply left out, and
+the others carry on. A missing humidity never takes a station offline.
 
-- **Measuring:** it sends sky and air temperature. The server judges it with
-  its own method (section 4), exactly as a reference station, and its setup row
-  records the sensor model and whether its sky reading arrives raw or already
-  corrected.
-- **Reporting:** it sends only the maker's own verdict (a cloud cover figure
-  or a clear/cloudy state set by thresholds its owner chose). The verdict is
-  kept and shown with its origin, but never treated as a measured fraction of
-  the sky, never compared with raw readings, and never used to test or tune
-  the network's own method.
+What follows from the list:
 
-A measuring third-party station that also sends its maker's verdict keeps both:
-the server's judgement is the one shown, the maker's is stored beside it.
+- **The network judges a station itself** only when it supplies sky and air
+  temperature and their processing is known (3.1.4). Its judgement uses the
+  method in section 4.
+- **The maker's verdict is always kept beside it,** with its origin, when the
+  station gives one. It is never treated as a measured fraction of the sky (a
+  Boltwood's cloud cover, for instance, comes from thresholds its owner set),
+  never compared with raw readings as if alike, and never used to tune the
+  network's own method. Having both is useful: the network's judgement can be
+  checked against the maker's on the same sky.
+- **A station that supplies only the maker's verdict** is shown with that
+  verdict, labelled as the maker's.
+
+#### 3.1.4 Provenance
+
+A driver's sky temperature may be raw, corrected, filtered or averaged, and
+the ASCOM property alone doesn't say which. So each station's setup row
+(section 5.1) records the device model, the driver's name and version (read
+from `DriverInfo` and `DriverVersion`), and, for each capability, what is known
+of its processing: `raw`, `corrected` (with the method, if the maker documents
+it), `averaged` (with the period), or `unknown`. A reading carries the same
+`processing` field.
+
+The network's calibration is applied only to sky temperatures known to be raw.
+Values whose processing is `corrected`, `averaged` or `unknown` are stored and
+shown as the station's own figures, but not judged by the network until their
+processing is established, by the maker's documentation or by comparison with
+a reference station nearby.
+
+#### 3.1.5 Age and staleness
+
+A driver can return the same value for many minutes while its sensor is
+stuck. So each value in a bridge's reading carries its age in seconds, from
+`TimeSinceLastUpdate` where the driver implements it, or `null` where it
+doesn't. The reading's own time `t` is when the bridge read the driver.
+
+- A value more than 5 minutes old, by its age, is not current.
+- A station whose values have no age at all is shown as current only while
+  they keep changing; ten identical readings in a row mark it stale.
+- A driver that errors, times out or is disconnected produces a reading with
+  no values and the flag `source_offline`, and the station shows as offline,
+  never as its last known state.
 
 ## 4. Telling clear from cloud
 
@@ -216,7 +280,9 @@ On the server behind ryanclinton.uk.
 - A host registers on the site and gets a unit id (`cy-0001`) and a secret key,
   shown once. The installer page (stage 4) writes both into the unit over the
   USB cable, with the WiFi details; until then Ryan does it by hand.
-- Registration records the setup, because different setups read differently:
+- Registration records the setup, because different setups read differently
+  (for a bridged sensor, also its device model, driver name and version, and
+  each capability's processing, section 3.1.4):
   sensor variant (BAA, read off the can), BME280 or BMP280, board, hardware
   revision, hood, film or open, heater or none, mounting (wall, pole, shed
   roof), and the height above ground. A change of any of these is a new setup
@@ -245,12 +311,27 @@ rate-limits the route, as it does `/forms/send`.
 - **Required:** `schema`, `unit`, `fw`, `boot`, `seq`, `t`, `t_ok`, `readings.sky_c`,
   `readings.air_c`. **Optional:** everything else; a unit without humidity
   (a BMP280) leaves it out, never sends 0.
-- **From a bridge (section 3.1)** the same format adds `"source"` (for example
-  `"ascom-alpaca"`), `"sky_kind": "raw"` or `"corrected"`, and, if the sensor
-  gives one, `"reported": {"cloud_cover": 50, "state": "cloudy", "by": "Boltwood III"}`
-  with the maker's verdict and its origin. A reporting station sends `reported`
-  and no `readings`; for it, `readings.sky_c` and `readings.air_c` aren't
-  required. `fw` is the bridge's version, `boot` and `seq` work as above.
+- **Station types and capabilities.** Every reading says what sent it and
+  what it carries, and the server checks the rest against that:
+  - `"source"`: `"cloudyoke-esp32"` for a reference station, or the bridge's
+    kind (`"ascom-alpaca"`, later `"indi"`, `"boltwood-file"`).
+  - `"capabilities"`: the list from section 3.1.3.
+  - each value in `readings` is required if its capability is declared and
+    absent otherwise; a reference station always declares `sky_temperature`
+    and `air_temperature`.
+  - from a bridge, each value is an object, `{"value": -18.4, "age_s": 42,
+    "processing": "raw"}` (section 3.1.4 and 3.1.5); a reference station sends
+    plain numbers, which are raw and fresh by definition.
+  - `"maker"`: `{"cloud_cover": 50, "age_s": 30, "by": "Boltwood III"}`, only if
+    `maker_cloud_cover` is declared.
+  - the machine-readable version is `schemas/reading.schema.json`, and the
+    server validates every reading against it; examples in `schemas/examples/`
+    are checked by `schemas/check.py`.
+- **Restarts and order, for a bridge.** A bridge keeps its `boot` counter in a
+  small file beside it, adds one on every start (including after a crash, so a
+  crash can never reuse numbers), and counts `seq` from 1 within each run, as a
+  reference station does. A reinstall that loses the file is registered as a
+  replacement (section 5.1), so the server never confuses old and new numbers.
 - **Times.** `t` is when the unit took the reading, from NTP. `t_ok` is false
   until the clock has synced since boot; such readings are stored but never
   judged. The server adds its own receipt time on arrival.
@@ -258,7 +339,8 @@ rate-limits the route, as it does `/forms/send`.
   counts readings since boot. The server keeps one reading per (unit, boot,
   seq): a repeat is answered 200 and dropped, so a unit can resend safely.
 - **Flags:** `sensor_read_failed`, `sky_out_of_range` (outside −70 to +60 °C),
-  `air_out_of_range`, `wet`, `heater_on`, `bmp280` (no humidity), `brownout`.
+  `air_out_of_range`, `wet`, `heater_on`, `bmp280` (no humidity), `brownout`, and, from a
+  bridge, `source_offline` (the driver errored, timed out or isn't connected; no values are sent).
   Flagged readings are kept but never judged clear.
 - **When WiFi drops.** The unit keeps up to 6 hours of readings (360, a few
   KB) in memory and sends them oldest first with their own `t` once it's back,
@@ -355,8 +437,8 @@ The page at stage 0 promises only stage 1. Stages 2 to 5 are "what I hope".
 
 | Step | What | Gate |
 |---|---|---|
-| E1 | The reading format takes bridges (section 5.2) | before the ingest service is written |
-| E2 | One ASCOM Alpaca bridge, run against a volunteer's real sensor for a few weeks | its readings arrive complete and its station is judged like a reference one, or labelled reporting |
+| E1 | The reading format takes bridges: capabilities, provenance, ages, restarts (sections 3.1 and 5.2, `schemas/reading.schema.json`) | done in the design; the ingest service validates against the schema |
+| E2 | One ASCOM Alpaca bridge, keeping to the contract in 3.1.2, run against a volunteer's real sensor for a few weeks | its capabilities are found correctly, unimplemented properties are skipped, values carry ages, errors and reconnects are recorded, and a driver failure shows as offline, never as the last known state |
 | E3 | A short install guide for that bridge | someone other than its author installs it from the guide alone |
 
 Existing sensors may give the network spread-out readings sooner than new

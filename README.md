@@ -56,13 +56,15 @@ the reading format, registration, calibration safeguards and privacy rules:
 ## Already running a cloud sensor?
 
 The ESP32 station is the reference design, not a condition of joining.
-Observatories already running an AAG CloudWatcher, a Boltwood or another
-ASCOM ObservingConditions device can send readings through a small bridge on
-their own PC or Raspberry Pi: outgoing HTTPS only, read-only, no open ports,
-nothing changed in their setup. The first bridge (ASCOM Alpaca) needs an
-owner willing to test it: see [spec §3.1](docs/spec.md#31-existing-sensors) and
-the issues. Sensors that only report their maker's clear/cloudy verdict are
-welcome too, labelled as such and kept apart from measured readings.
+Observatories already running an AAG CloudWatcher, a Boltwood or another ASCOM
+ObservingConditions device should be able to send readings through a small
+bridge on their own PC or Raspberry Pi. **No bridge exists yet:** the first,
+for ASCOM Alpaca, is being designed, and owners of such sensors are invited to
+help validate it ([issue 7](https://github.com/Ryan-Clinton/cloudyoke/issues/7)).
+The bridge only reads, never writes to the device, opens no ports and is never
+part of an observatory's safety system ([spec §3.1](docs/spec.md#31-existing-sensors)).
+Each station declares what it measures; a maker's own cloud verdict is kept
+beside the network's judgement, labelled as the maker's.
 
 ## Open questions
 
