@@ -27,6 +27,7 @@ from pathlib import Path
 API = "https://aviationweather.gov/api/data/metar"
 AGENT = "cloudyoke (github.com/Ryan-Clinton/cloudyoke)"
 MILE_KM = 1.609344
+CODES = ("CAVOK", "NSC", "NCD", "CLR", "SKC")    # whole-sky codes as they appear in a report's text
 
 
 def fetch(ids, hours):
@@ -62,7 +63,10 @@ def decode(m):
         "raw": raw,
         "auto": "AUTO" in words,
         "correction": "COR" in words,
-        "cover": m.get("cover"),                       # the report's overall code, kept as given
+        # The report's own code, read from its raw text: the API's "cover" field rewrites NCD as CLR (seen on
+        # Belfast's AUTO reports, 9 Nov 2026), and NCD is not clear, so the API's version is only kept beside it
+        "cover": next((w for w in words if w in CODES), m.get("cover")),
+        "api_cover": m.get("cover"),
         "layers": [{"cover": c.get("cover"), "base_ft": c.get("base")} for c in m.get("clouds") or []],
         "vertical_visibility_ft": next((int(w[2:]) * 100 for w in words if re.fullmatch(r"VV\d{3}", w)), None),
         "visibility_km": km,

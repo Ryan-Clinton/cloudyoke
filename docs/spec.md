@@ -389,7 +389,10 @@ judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
   visibility, visibility (from the API's statute miles, with "or more" kept),
   weather such as fog, temperature, dew point, wind and pressure.
 - **Nothing is turned into clear or cloudy.** CAVOK, NSC, NCD, CLR, SKC and
-  the API's OVX (sky hidden, as by fog) are kept as given.
+  the API's OVX (sky hidden, as by fog) are kept as given. The code is read from
+  the report's own text, not the API's `cover` field, which rewrites NCD as
+  CLR (seen on Belfast International's and Belfast City's AUTO reports, 9
+  November 2026); the API's version is kept beside it as `api_cover`.
 - **Graphs:** `server/metar_graph.py` draws an airport's days (layers by
   height, the codes, fog, visibility, and closed hours left blank), and
   `server/night_graph.py --reference EGAE` lines the airport's reports up

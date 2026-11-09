@@ -32,6 +32,13 @@ class DecodeTest(unittest.TestCase):
         self.assertEqual(o["layers"], [])
         self.assertNotIn("clear", str(o).lower().replace("cleared", ""))
 
+    def test_ncd_is_kept_although_the_api_says_clr(self):
+        # Belfast International's real report, 9 Nov 2026 23:20, with the API's cover field as it came
+        egaa = {"icaoId": "EGAA", "obsTime": 1794266400, "visib": "6+", "cover": "CLR", "clouds": [],
+                "rawOb": "METAR EGAA 092320Z AUTO 08004KT 9999 NCD 03/03 Q1014"}
+        o = metar.decode(egaa)
+        self.assertEqual((o["cover"], o["api_cover"], o["auto"]), ("NCD", "CLR", True))
+
     def test_real_observation_time_not_the_rounded_report_time(self):
         # obsTime is 23:20 here; the API's reportTime for the 22:50 report says 23:00, so obsTime is the one kept
         self.assertEqual(metar.decode(CAVOK)["obs_time"], "2026-11-09T23:20:00Z")
