@@ -35,6 +35,12 @@ few weeks' post. The UK build needs no soldering.
   open sensor under a hood copes better with dew is the first station's test.
   Some cling film is PVC, not polyethylene.
 
+## The first station: a Nano over USB
+
+Before any ESP32, the first night's readings come from an Arduino Nano plugged into a computer by USB, with
+the same two sensors. Wiring, the 5 V / 3.3 V care it needs, flashing and running it:
+[firmware/nano-usb](../firmware/nano-usb/README.md).
+
 ## Wiring (ESP32 DevKit)
 
 Both sensors share the I²C bus. Their addresses differ (MLX90614 0x5A,

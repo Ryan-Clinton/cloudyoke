@@ -41,7 +41,7 @@ is a real reason to split it.
 ```
 docs/spec.md       the design: station, judging, readings, privacy, stages, sources
 hardware/bom.md    parts, prices, traps and wiring
-firmware/          the ESP32 code (not started)
+firmware/          nano-usb: the first station, a Nano over USB; the ESP32 code is not started
 bridges/           readers for existing sensors, ASCOM Alpaca first (not started)
 schemas/           the reading format as JSON Schema, with examples; check with python schemas/check.py
 server/            receiver and night graph for the first station; judging and the rest to come

@@ -28,7 +28,8 @@
         "sky_c": {"$ref": "#/$defs/value"},
         "air_c": {"$ref": "#/$defs/value"},
         "humidity": {"$ref": "#/$defs/value"},
-        "pressure_hpa": {"$ref": "#/$defs/value"}
+        "pressure_hpa": {"$ref": "#/$defs/value"},
+        "sensor_c": {"$ref": "#/$defs/value", "description": "the sky sensor's own temperature, kept for checking; no capability needed"}
       }
     },
     "maker": {
