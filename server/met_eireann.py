@@ -11,8 +11,8 @@ data". The service is marked experimental. Checked 10 November 2026: it keeps ab
 about an hour behind real time, and answers at most 154 readings (about 38 minutes) per request, so the
 window is fetched in 30-minute steps. What arrives is kept; gaps stay gaps.
 
-Each reading is kept once, by station and time, in data/reference/MET-<station id>/<UTC date>.jsonl,
-thinned to one a minute (the first in each minute) to keep the files small. A reference source is not a
+Every 15-second reading is kept once, by station and time, in data/reference/MET-<station id>/<UTC date>.jsonl
+(about 1.7 MB a station a day), so short-lived changes can be studied. A reference source is not a
 station: never on the map as one, never judged (docs/spec.md 5.3.1). A ceilometer only sees straight up,
 and only cloud it can measure a base for; no reading is turned into "clear". Standard library only.
 """
@@ -89,13 +89,12 @@ def decode(station, coverage):
     return out
 
 
-def thin(observations):
-    """The first reading in each minute, so a day is about 1,440 lines, not 5,760."""
-    kept, minutes = [], set()
+def unique(observations):
+    """Every reading once, oldest first (the 30-minute steps can meet at a shared reading)."""
+    kept, times = [], set()
     for o in sorted(observations, key=lambda o: o["obs_time"]):
-        minute = o["obs_time"][:16]
-        if minute not in minutes:
-            minutes.add(minute)
+        if o["obs_time"] not in times:
+            times.add(o["obs_time"])
             kept.append(o)
     return kept
 
@@ -112,10 +111,10 @@ def store(root, observations):
         if path.exists():
             for line in path.read_text(encoding="utf-8").splitlines():
                 try:
-                    seen.add(json.loads(line)["obs_time"][:16])
+                    seen.add(json.loads(line)["obs_time"])
                 except (ValueError, KeyError):
                     continue
-        lines = [json.dumps(o, separators=(",", ":"), ensure_ascii=False) + "\n" for o in rows if o["obs_time"][:16] not in seen]
+        lines = [json.dumps(o, separators=(",", ":"), ensure_ascii=False) + "\n" for o in rows if o["obs_time"] not in seen]
         if lines:
             fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
             try:
@@ -137,12 +136,12 @@ def main():
     failed = 0
     for station in (int(s) for s in a.stations.split(",") if s.strip()):
         try:
-            obs = thin(fetch_all(station, start, end))
+            obs = unique(fetch_all(station, start, end))
         except (OSError, ValueError, KeyError) as e:
             print(f"met_eireann: {station}: couldn't fetch: {e}")
             failed += 1
             continue
-        print(f"met_eireann: {STATIONS.get(station, station)}: {len(obs)} minutes fetched, {store(a.data, obs)} new")
+        print(f"met_eireann: {STATIONS.get(station, station)}: {len(obs)} readings fetched, {store(a.data, obs)} new")
     sys.exit(1 if failed and failed == len(a.stations.split(",")) else 0)
 
 

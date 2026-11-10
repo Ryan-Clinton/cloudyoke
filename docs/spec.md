@@ -407,8 +407,17 @@ km north-west, upwind in the usual weather), Finner and Belmullet, from Met
 cover in oktas, 9 meaning the sky is hidden. The service is marked
 experimental: it keeps about 26 hours, runs about an hour behind, and answers
 at most 154 readings a request, so it is fetched in 30-minute steps every 30
-minutes and thinned to one reading a minute. Like the airports' ceilometers it
+minutes, every 15-second reading kept. Like the airports' ceilometers it
 sees only straight up, so nothing it reports is turned into "clear".
+
+**The reference dashboard** (`server/dashboard.py`, ryanclinton.uk/cloudyoke/live/),
+rebuilt after each collection: every source's distance and direction from
+Ballymoney, its latest report as reported and how old it is, and the last 24
+hours side by side, west to east, shaded by reported cover with a mark for
+ceilometer layers at 16,000 ft or higher. A source past its expected interval
+(90 minutes for an airport, 3 hours for a ceilometer) is shown stale and listed
+in `status.json`, so one that stops is seen, not silently missing. Labelled
+observations, not predictions.
 
 **Looked for and not found** (10 November 2026): the Wild Geese / Skydive
 Ireland airfield at Movenis, near Garvagh, publishes no METAR, weather station

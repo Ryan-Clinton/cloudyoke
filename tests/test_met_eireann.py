@@ -38,12 +38,12 @@ class MetEireannTest(unittest.TestCase):
             self.assertIsNone(met_eireann.number(bad))
         self.assertEqual(met_eireann.number(0.0), 0.0)
 
-    def test_thin_to_one_a_minute_and_store_once(self):
+    def test_every_reading_kept_once(self):
         obs = met_eireann.decode(17, coverage(TIMES, [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]))
-        thin = met_eireann.thin(obs)
-        self.assertEqual([o["obs_time"] for o in thin], ["2026-11-09T23:07:00Z", "2026-11-09T23:08:00Z"])
+        thin = met_eireann.unique(obs + obs[:1])
+        self.assertEqual([o["obs_time"] for o in thin], ["2026-11-09T23:07:00Z", "2026-11-09T23:07:15Z", "2026-11-09T23:08:00Z"])
         with tempfile.TemporaryDirectory() as d:
-            self.assertEqual(met_eireann.store(d, thin), 2)
+            self.assertEqual(met_eireann.store(d, thin), 3)
             self.assertEqual(met_eireann.store(d, thin), 0)
             rows = (Path(d) / "reference" / "MET-17" / "2026-11-09.jsonl").read_text().splitlines()
             self.assertEqual(json.loads(rows[0])["source"], "met-eireann-ceilometer")

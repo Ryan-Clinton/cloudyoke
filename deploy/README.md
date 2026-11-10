@@ -5,14 +5,14 @@ this repository) and `/srv/cloudyoke/data`.
 
 | Unit | Does |
 |---|---|
-| `cloudyoke-metar.service` + `.timer` | Every 30 minutes, keeps the reports of City of Derry, Belfast International, Belfast City and Prestwick (`server/metar.py`), then Met Éireann's ceilometers at Malin Head, Finner and Belmullet (`server/met_eireann.py`) |
+| `cloudyoke-metar.service` + `.timer` | Every 30 minutes, keeps the reports of City of Derry, Belfast International, Belfast City and Prestwick (`server/metar.py`), then Met Éireann's ceilometers at Malin Head, Finner and Belmullet (`server/met_eireann.py`), then rebuilds the dashboard in `/srv/cloudyoke/www` (`server/dashboard.py`), served at ryanclinton.uk/cloudyoke/live/ by the site's nginx |
 
 Set up once, as root:
 
 ```
 useradd --system --home /srv/cloudyoke --shell /usr/sbin/nologin cloudyoke
 git clone https://github.com/Ryan-Clinton/cloudyoke.git /srv/cloudyoke/code
-install -d -o cloudyoke -g cloudyoke /srv/cloudyoke/data
+install -d -o cloudyoke -g cloudyoke /srv/cloudyoke/data /srv/cloudyoke/www
 cp /srv/cloudyoke/code/deploy/cloudyoke-metar.* /etc/systemd/system/
 systemctl daemon-reload && systemctl enable --now cloudyoke-metar.timer
 sudo -u cloudyoke python3 /srv/cloudyoke/code/server/met_eireann.py --data /srv/cloudyoke/data --hours 27

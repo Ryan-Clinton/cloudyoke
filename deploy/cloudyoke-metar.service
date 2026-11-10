@@ -3,7 +3,7 @@
 # kept as NCD, never as clear.
 # One API request returns at most about 13 days, so history not collected is lost. Standard library only.
 [Unit]
-Description=cloudyoke: collect reference reports: airports (METAR) and Met Éireann ceilometers
+Description=cloudyoke: collect reference reports (airports, Met Éireann ceilometers) and rebuild the dashboard
 Wants=network-online.target
 After=network-online.target
 
@@ -17,11 +17,13 @@ ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --ids EGAE
 # Met Éireann's ceilometers (Malin Head, Finner, Belmullet), after the airports; '-' so a failure here never
 # stops the airport fetch from counting as done. CC BY 4.0, "Contains Met Éireann data"
 ExecStart=-/usr/bin/python3 server/met_eireann.py --data /srv/cloudyoke/data --hours 3
+# Then the reference dashboard (ryanclinton.uk/cloudyoke/live/) and status.json, so a stopped source shows as stale
+ExecStart=-/usr/bin/python3 server/dashboard.py --data /srv/cloudyoke/data --out /srv/cloudyoke/www
 MemoryMax=200M
 Nice=10
 TimeoutStartSec=5min
 NoNewPrivileges=yes
 ProtectSystem=strict
-ReadWritePaths=/srv/cloudyoke/data
+ReadWritePaths=/srv/cloudyoke/data /srv/cloudyoke/www
 ProtectHome=yes
 PrivateTmp=yes
