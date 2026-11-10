@@ -115,6 +115,26 @@ def age_text(minutes):
     return f"{minutes / 1440:.0f} days ago"
 
 
+def bins(rows, minutes=5):
+    """Ceilometer readings grouped into bins: the most cloud seen in each, and whether any layer was high.
+    Returns rows shaped like single readings, so the drawing code needn't care."""
+    out = {}
+    for t, r in rows:
+        start = t.replace(second=0, microsecond=0, minute=t.minute - t.minute % minutes)
+        n, high = oktas("ceilometer", r)
+        b = out.setdefault(start, {"n": 0, "high": False, "count": 0, "top": 0})
+        b["n"], b["high"], b["count"] = max(b["n"], n), b["high"] or high, b["count"] + 1
+        b["top"] = max([b["top"]] + [layer.get("base_ft") or 0 for layer in r.get("layers") or []])
+    result = []
+    for start, b in sorted(out.items()):
+        layers = [{"oktas": b["n"], "base_ft": b["top"] if b["high"] else None}] if b["n"] else []
+        if b["high"] and not b["n"]:
+            layers = [{"oktas": 0, "base_ft": b["top"]}]
+        result.append((start, {"obs_time": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "layers": layers,
+                               "summary": f"{b['count']} readings; most cover {b['n']}/8; highest base {int(b['top']):,} ft"}))
+    return result
+
+
 def timeline(root, now):
     """24 hours, one row per source west to east, shaded by how much of the sky each observation reports
     covered; a dark tick above a row marks a layer at 16,000 ft or higher (cirrus height)."""
@@ -134,13 +154,15 @@ def timeline(root, now):
         out.append(f'<text x="{LEFT - 8}" y="{y + 17}" text-anchor="end" class="row">{html.escape(name.replace(" Airport", ""))} '
                    f'<tspan class="tick">{km} km {way}</tspan></text>')
         rows = load(root, key, start)
+        if kind == "ceilometer":
+            rows = bins(rows)                  # 15-second readings drawn as 5-minute bins, or the page weighs megabytes
         gap = timedelta(minutes=75 if kind == "metar" else 5)
         for j, (t, r) in enumerate(rows):
             t2 = min(rows[j + 1][0] if j + 1 < len(rows) else t + gap, t + gap)
             n, high = oktas(kind, r)
             x1, x2 = x(t), max(x(t2), x(t) + 0.6)
             code = r.get("cover") if kind == "metar" else None
-            label = r.get("raw") if kind == "metar" else f'{r["obs_time"]} {describe(kind, r)}'
+            label = r.get("raw") if kind == "metar" else f'{r["obs_time"]}, 5 minutes: {r.get("summary", describe(kind, r))}'
             out.append(f'<rect x="{x1:.1f}" y="{y + 4}" width="{x2 - x1:.1f}" height="{ROW - 10}" fill="{SHADE[n]}"'
                        f'{" stroke=\"#8a735d\" stroke-width=\".4\"" if code in CLEARISH else ""}><title>{html.escape(label)}</title></rect>')
             if high:

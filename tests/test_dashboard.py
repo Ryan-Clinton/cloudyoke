@@ -47,6 +47,16 @@ class DashboardTest(unittest.TestCase):
         self.assertEqual(dashboard.oktas("metar", {"cover": "NCD", "layers": []}), (0, False))
         self.assertEqual(dashboard.describe("ceilometer", {"layers": []}), "no cloud base detected straight overhead")
 
+    def test_bins_keep_the_most_cloud_and_the_high_mark(self):
+        from datetime import timedelta
+        t0 = datetime(2026, 11, 9, 23, 0, tzinfo=timezone.utc)
+        rows = [(t0 + timedelta(seconds=15 * i), {"layers": [{"base_ft": 22900 if i == 3 else 4000, "oktas": 2 + (i == 5) * 5}]})
+                for i in range(40)]                                      # 10 minutes of 15-second readings
+        b = dashboard.bins(rows)
+        self.assertEqual(len(b), 2)
+        self.assertEqual(dashboard.oktas("ceilometer", b[0][1]), (7, True))
+        self.assertEqual(dashboard.oktas("ceilometer", b[1][1]), (2, False))
+
     def test_place(self):
         self.assertEqual(dashboard.place(55.3719, -7.3392), (62, "NW"))
 
