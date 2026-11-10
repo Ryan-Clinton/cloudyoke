@@ -24,12 +24,13 @@ TIMES = ["2026-11-09T23:07:00+00:00", "2026-11-09T23:07:15+00:00", "2026-11-09T2
 
 class MetEireannTest(unittest.TestCase):
     def test_decode_keeps_layers_and_drops_no_data(self):
-        obs = met_eireann.decode(17, coverage(TIMES, [5700.0, -99.0, 200.0], [5700.0, -99.0, 200.0], [7.0, 0.0, 9.0]))
+        obs = met_eireann.decode(17, coverage(TIMES, [5700.0, -99.0, 200.0], [57.0, -99.0, 2.0], [7.0, -1.0, 9.0]))
         self.assertEqual(obs[0]["name"], "Malin Head")
         self.assertEqual(obs[0]["obs_time"], "2026-11-09T23:07:00Z")
-        self.assertEqual(obs[0]["layers"], [{"base_ft": 5700.0, "oktas": 7.0}])
+        self.assertEqual(obs[0]["layers"], [{"base_ft": 5700.0, "oktas": 7.0, "vertical_visibility": False}], "layer heights are hundreds of feet")
+        self.assertEqual(obs[1]["layers"], [], "-99 height and -1 cover are missing, not a layer")
         self.assertIsNone(obs[1]["lowest_base_ft"], "-99 means no data, never a height")
-        self.assertEqual(obs[2]["layers"], [{"base_ft": 200.0, "oktas": 9.0}], "9 oktas (sky hidden) kept as reported")
+        self.assertEqual(obs[2]["layers"], [{"base_ft": 200.0, "oktas": 9.0, "vertical_visibility": True}], "9 is vertical visibility")
         self.assertIn("Met Éireann", obs[0]["attribution"])
 
     def test_number(self):

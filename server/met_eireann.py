@@ -4,8 +4,9 @@
     python server/met_eireann.py --data data --hours 6
 
 Met Éireann's open-data EDR API (https://opendata2.met.ie/edr/docs) serves ceilometer readings every 15
-seconds: up to five cloud layers, each with its base in feet and its cover in oktas (eighths of the sky;
-9 means the sky is hidden, as by fog), and the lowest base. Licensed CC BY 4.0: "Contains Met Éireann
+seconds: up to five cloud layers, each with its base (sent in hundreds of feet, stored in feet) and its cover
+in oktas (eighths of the sky; 9 means vertical visibility, the sky hidden, as by fog; -1 and 99 mean
+missing), and the lowest base in feet. Licensed CC BY 4.0: "Contains Met Éireann
 data". The service is marked experimental. Checked 10 November 2026: it keeps about the last 26 hours,
 about an hour behind real time, and answers at most 154 readings (about 38 minutes) per request, so the
 window is fetched in 30-minute steps. What arrives is kept; gaps stay gaps.
@@ -68,9 +69,13 @@ def decode(station, coverage):
     for i, t in enumerate(times):
         layers = []
         for n in range(1, 6):
+            # Layer heights come in hundreds of feet (55 is 5,500 ft), unlike the lowest base, which is in feet.
+            # Cover is 0-8 oktas or 9 for vertical visibility (sky hidden); -1 and 99 mean missing.
             base, cover = get(f"cloud_layer_base_height_{n}", i), get(f"cloud_layer_cover_{n}", i)
-            if base is not None or cover is not None:
-                layers.append({"base_ft": base, "oktas": cover})
+            base = base * 100 if base is not None else None
+            cover = cover if cover is not None and 0 <= cover <= 9 else None
+            if base is not None or cover:
+                layers.append({"base_ft": base, "oktas": cover, "vertical_visibility": cover == 9})
         when = datetime.fromisoformat(t.replace("Z", "+00:00")).astimezone(timezone.utc)
         out.append({
             "source": "met-eireann-ceilometer",
