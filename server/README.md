@@ -11,6 +11,7 @@ Standard library Python; if the `jsonschema` package is installed, every reading
 | `night_graph.py` | One station's night (12:00 to 12:00 UTC) as SVG: sky, air and sky minus air, with gaps left as gaps and flagged readings ticked |
 | `pretend_station.py` | A made-up night for trying it all before hardware exists; its graph is stamped MADE-UP DATA |
 | `metar.py` | Airport weather reports as a reference source (City of Derry, EGAE, first): fetched from the Aviation Weather Center's API, each kept once with its raw text and real observation time in `data/reference/<ICAO>/`; codes like CAVOK and NCD kept as given, never turned into "clear" ([spec §5.3.1](../docs/spec.md#531-reference-sources-airport-reports)). Run every 30 minutes |
+| `met_eireann.py` | Met Éireann's ceilometers as reference sources (Malin Head, Finner, Belmullet): cloud layers' bases and cover in oktas, from its open-data EDR API (CC BY 4.0, "Contains Met Éireann data"), fetched in 30-minute steps under the API's cap, thinned to one a minute, in `data/reference/MET-<id>/` |
 | `metar_graph.py` | An airport's days as SVG: cloud layers by height, the codes, fog and visibility, closed hours left blank |
 
 `night_graph.py --reference EGAE` adds a strip of the airport's reports under a station's night.

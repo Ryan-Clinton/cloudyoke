@@ -400,6 +400,23 @@ judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
   `server/night_graph.py --reference EGAE` lines the airport's reports up
   under a station's night, for the comparison stage 1 needs (section 9.2).
 
+**Met Éireann's ceilometers** (since 10 November 2026): Malin Head (about 70
+km north-west, upwind in the usual weather), Finner and Belmullet, from Met
+Éireann's open-data EDR API (`server/met_eireann.py`, CC BY 4.0, "Contains Met
+Éireann data"). Each reading gives up to five cloud layers with base in feet and
+cover in oktas, 9 meaning the sky is hidden. The service is marked
+experimental: it keeps about 26 hours, runs about an hour behind, and answers
+at most 154 readings a request, so it is fetched in 30-minute steps every 30
+minutes and thinned to one reading a minute. Like the airports' ceilometers it
+sees only straight up, so nothing it reports is turned into "clear".
+
+**Looked for and not found** (10 November 2026): the Wild Geese / Skydive
+Ireland airfield at Movenis, near Garvagh, publishes no METAR, weather station
+or webcam; Armagh Observatory's live weather pages show no cloud sensor; the
+only other aviation station nearby is Campbeltown (EGEC). Public infrared
+sky-temperature feeds exist (a ThingSpeak channel at a star party in Gujarat,
+India) but none near Ireland was found.
+
 ### 5.4 The install check
 
 When a unit is first up, the site shows its first night's readings beside the

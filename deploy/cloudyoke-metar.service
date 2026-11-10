@@ -3,7 +3,7 @@
 # kept as NCD, never as clear.
 # One API request returns at most about 13 days, so history not collected is lost. Standard library only.
 [Unit]
-Description=cloudyoke: collect airport reports (METAR): Derry, Belfast Intl, Belfast City, Prestwick
+Description=cloudyoke: collect reference reports: airports (METAR) and Met Éireann ceilometers
 Wants=network-online.target
 After=network-online.target
 
@@ -14,9 +14,12 @@ Group=cloudyoke
 WorkingDirectory=/srv/cloudyoke/code
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --ids EGAE,EGAA,EGAC,EGPK --hours 6
+# Met Éireann's ceilometers (Malin Head, Finner, Belmullet), after the airports; '-' so a failure here never
+# stops the airport fetch from counting as done. CC BY 4.0, "Contains Met Éireann data"
+ExecStart=-/usr/bin/python3 server/met_eireann.py --data /srv/cloudyoke/data --hours 3
 MemoryMax=200M
 Nice=10
-TimeoutStartSec=2min
+TimeoutStartSec=5min
 NoNewPrivileges=yes
 ProtectSystem=strict
 ReadWritePaths=/srv/cloudyoke/data
