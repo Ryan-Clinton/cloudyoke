@@ -125,16 +125,46 @@ def store(root, observations):
     return new
 
 
+KEPT = timedelta(hours=26)          # how far back the service still has readings
+
+
+def newest_stored(root, station, now):
+    """The latest reading already stored for a station, from the last two days' files, or None."""
+    newest = None
+    for day in (now - timedelta(days=1), now):
+        path = Path(root) / "reference" / f"MET-{station}" / f"{day:%Y-%m-%d}.jsonl"
+        if not path.exists():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():     # a backfill appends out of order
+            try:
+                t = json.loads(line)["obs_time"]
+            except (ValueError, KeyError):
+                continue
+            newest = max(newest or t, t)
+    return datetime.fromisoformat(newest.replace("Z", "+00:00")) if newest else None
+
+
+def window_start(now, hours, newest):
+    """From the newest stored reading (less a margin), or the last `hours` if that's earlier, never past
+    what the service keeps. The feed can stall for most of a day and then publish its backlog all at once
+    (10-11 Nov 2026: nothing after 14:30 until 14:00 the next day), so a fixed window would slide past it."""
+    start = now - timedelta(hours=hours)
+    if newest is not None:
+        start = min(start, newest - timedelta(minutes=15))
+    return max(start, now - KEPT)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="data")
-    ap.add_argument("--hours", type=int, default=3, help="how far back; the service keeps about 26")
+    ap.add_argument("--hours", type=int, default=3,
+                    help="at least this far back, and further to the newest reading already stored; the service keeps about 26")
     ap.add_argument("--stations", default=",".join(str(s) for s in STATIONS), help="Met Éireann EDR location ids")
     a = ap.parse_args()
     end = datetime.now(timezone.utc)
-    start = end - timedelta(hours=max(1, min(a.hours, 27)))
     failed = 0
     for station in (int(s) for s in a.stations.split(",") if s.strip()):
+        start = window_start(end, max(1, a.hours), newest_stored(a.data, station, end))
         try:
             obs = unique(fetch_all(station, start, end))
         except (OSError, ValueError, KeyError) as e:

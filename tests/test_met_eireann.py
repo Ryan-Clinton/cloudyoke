@@ -48,6 +48,21 @@ class MetEireannTest(unittest.TestCase):
             rows = (Path(d) / "reference" / "MET-17" / "2026-11-09.jsonl").read_text().splitlines()
             self.assertEqual(json.loads(rows[0])["source"], "met-eireann-ceilometer")
 
+    def test_window_reaches_back_to_a_stalled_feed(self):
+        from datetime import datetime, timedelta, timezone
+        now = datetime(2026, 11, 11, 14, 0, tzinfo=timezone.utc)
+        stalled = datetime(2026, 11, 10, 14, 30, tzinfo=timezone.utc)       # the 10-11 Nov stall
+        self.assertEqual(met_eireann.window_start(now, 3, stalled), stalled - timedelta(minutes=15))
+        self.assertEqual(met_eireann.window_start(now, 3, now - timedelta(minutes=40)), now - timedelta(hours=3))
+        self.assertEqual(met_eireann.window_start(now, 3, None), now - timedelta(hours=3))
+        self.assertEqual(met_eireann.window_start(now, 3, now - timedelta(days=3)), now - timedelta(hours=26))
+        with tempfile.TemporaryDirectory() as d:
+            obs = met_eireann.decode(17, coverage(TIMES, [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]))
+            met_eireann.store(d, list(reversed(obs)))                   # out of order, as a backfill writes
+            got = met_eireann.newest_stored(d, 17, datetime(2026, 11, 10, 1, 0, tzinfo=timezone.utc))
+            self.assertEqual(got, datetime(2026, 11, 9, 23, 8, tzinfo=timezone.utc))
+            self.assertIsNone(met_eireann.newest_stored(d, 104, now))
+
     def test_empty_window(self):
         self.assertEqual(met_eireann.decode(17, coverage([], [], [], [])), [])
 

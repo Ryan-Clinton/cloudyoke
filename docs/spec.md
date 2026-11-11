@@ -407,7 +407,11 @@ km north-west, upwind in the usual weather), Finner and Belmullet, from Met
 cover in oktas, 9 meaning the sky is hidden. The service is marked
 experimental: it keeps about 26 hours, runs about an hour behind, and answers
 at most 154 readings a request, so it is fetched in 30-minute steps every 30
-minutes, every 15-second reading kept. Like the airports' ceilometers it
+minutes, every 15-second reading kept. Each fetch reaches back to the newest
+reading already stored, up to 26 hours: on 10 to 11 November the feed published
+nothing after 14:30 for almost a day, then the whole backlog at once, and a
+fixed 3-hour window missed it (recovered by hand; `docs/nights/2026-11-10.md`
+compares that night's sources with a telescope's view). Like the airports' ceilometers it
 sees only straight up, so nothing it reports is turned into "clear".
 
 **The reference dashboard** (`server/dashboard.py`, ryanclinton.uk/cloudyoke/live/),

@@ -15,7 +15,9 @@ WorkingDirectory=/srv/cloudyoke/code
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --ids EGAE,EGAA,EGAC,EGPK --hours 6
 # Met Éireann's ceilometers (Malin Head, Finner, Belmullet), after the airports; '-' so a failure here never
-# stops the airport fetch from counting as done. CC BY 4.0, "Contains Met Éireann data"
+# stops the airport fetch from counting as done. Each fetch reaches back to the newest reading already stored
+# (up to 26 hours), so a feed that stalls and then publishes its backlog is still caught. CC BY 4.0,
+# "Contains Met Éireann data"
 ExecStart=-/usr/bin/python3 server/met_eireann.py --data /srv/cloudyoke/data --hours 3
 # Then the reference dashboard (ryanclinton.uk/cloudyoke/live/) and status.json, so a stopped source shows as stale
 ExecStart=-/usr/bin/python3 server/dashboard.py --data /srv/cloudyoke/data --out /srv/cloudyoke/www
