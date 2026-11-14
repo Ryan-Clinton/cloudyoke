@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Meteosat's view of each joined site: a rough cloud verdict from the satellite's 10.5 µm infrared picture,
-for anyone who has joined, before they have a sensor.
+"""Meteosat's view of each joined site: a rough cloud verdict from the satellite's 10.5 µm infrared picture, a
+reference beside the site's own sensor, as the airport reports are.
 
     python server/satellite.py --data data                 every site in data/sites.json, the newest picture
     python server/satellite.py --data data --hours 6       and any picture of the last 6 hours not yet kept
@@ -16,9 +16,8 @@ clear sky:
 
     more than 20 brighter: "cloud";  less than 10: "probably clear";  between: "thin or broken cloud"
 
-It is a rough measure, not calibrated against anything at the site. That is what joined sites are for: each
-host's reports of the real sky (seen.py), an imager's frames, and later a station's readings score it, site by
-site.
+It is a rough measure, not calibrated against anything at the site; the site's sensor is what it is compared
+against (seen.py).
 
 Privacy (docs/spec.md 6): a site is judged at the centre of its 0.05° cell, never at a position someone gave,
 so nothing here or in what it keeps is finer than the cell. Keeps one line per site and picture in

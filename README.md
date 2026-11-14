@@ -16,24 +16,21 @@ Public page: https://ryanclinton.uk/cloudyoke/
 Antrim, Northern Ireland. The Nano-over-USB station's firmware is written
 ([firmware/nano-usb](firmware/nano-usb/README.md)); the ESP32's isn't. The
 server keeps airport and Met Éireann ceilometer reports as references
-([live](https://ryanclinton.uk/cloudyoke/live/)). It also judges every joined
-site from Meteosat's infrared picture every 10 minutes
-([joined sites](https://ryanclinton.uk/cloudyoke/live/sites/)), scored against
-what people there see. Next milestone:
+([live](https://ryanclinton.uk/cloudyoke/live/)), and Meteosat's infrared
+verdict for each joined site every 10 minutes as another reference
+([joined sites](https://ryanclinton.uk/cloudyoke/live/sites/)). Next milestone:
 [first observational data](https://github.com/Ryan-Clinton/cloudyoke/milestone/1).
 
 | | |
 |---|---|
 | Phase | Parts arriving; joining open |
 | Stations online | 0 |
-| Joined sites | Satellite verdicts every 10 minutes |
-| Data | Reference sources and satellite verdicts |
+| Data | Reference sources (airports, ceilometers, satellite) |
 
 ## Join
 
-A place joins before any sensor does: the area goes on the joined sites' page
-with the satellite's verdict, and what people there see scores it. A telescope's
-frames, an existing cloud sensor or a £15 station add to it later. How:
+A site joins with an infrared cloud sensor: the £15 Nano station, or a
+CloudWatcher, Boltwood or other ASCOM sensor already running. How:
 [docs/join.md](docs/join.md), or open a
 [join issue](https://github.com/Ryan-Clinton/cloudyoke/issues/new?template=join.yml).
 

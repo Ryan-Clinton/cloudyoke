@@ -107,7 +107,7 @@ class CollectTest(unittest.TestCase):
         with mock.patch.object(satellite, "picture_time", return_value=NOW - timedelta(minutes=25)), \
                 mock.patch.object(satellite, "look", side_effect=fake_look):
             satellite.collect(self.root, hours=1, now=NOW)
-        seen.add(self.root, "home", "2026-11-14T21:00", "2026-11-14T21:30", "clear", "imager")
+        seen.add(self.root, "home", "2026-11-14T21:00", "2026-11-14T21:30", "clear", "station")
         s = seen.score(self.root, "home")
         self.assertEqual((s["n"], s["agree"], s["false_cloud"]), (3, 0, 3))
         status = sites_page.build(self.root, self.root / "www", NOW)
@@ -119,7 +119,7 @@ class CollectTest(unittest.TestCase):
 
     def test_a_report_must_end_after_it_starts(self):
         with self.assertRaises(ValueError):
-            seen.add(self.root, "home", "2026-11-14T22:00", "2026-11-14T21:00", "clear", "host")
+            seen.add(self.root, "home", "2026-11-14T22:00", "2026-11-14T21:00", "clear", "station")
 
 
 if __name__ == "__main__":

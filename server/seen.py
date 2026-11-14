@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-"""What the sky at a joined site really did, from the people there, and how the satellite's verdicts
-(satellite.py) score against it.
+"""What a joined site's sensor said the sky did, and how the satellite's verdicts (satellite.py) score against it.
 
     python server/seen.py add --data data --site ballymoney --from 2026-11-14T21:00 --to 2026-11-14T23:30 \\
-        --sky clear --by host --note "stars to the horizon"
+        --sky clear --by station
     python server/seen.py scores --data data [--site ballymoney]
 
-A report is a span of time (UTC) and what the sky was through it: clear, partly (some cloud, or thin cloud the
-stars showed through) or cloudy. --by says who saw it: "host" for someone looking up, "imager" for a telescope
-or camera's frames (subs kept and lost), "station" for a sensor. Reports are kept as given in
+A report is a span of time (UTC) and the sky's state through it: clear, partly or cloudy. --by says which
+sensor: "station" for a cloudyoke station's judged state, "sensor" for an existing sensor's own verdict
+(CloudWatcher, Boltwood). Entered by hand until the server judges stations itself (issue 5). Kept as given in
 data/seen/<site>.jsonl; nothing is inferred between them.
 
 Scoring pairs each satellite verdict whose picture falls inside a report with what the report says. The
@@ -22,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SKIES = ("clear", "partly", "cloudy")
-BY = ("host", "imager", "station")
+BY = ("station", "sensor")
 MATCH = {"probably clear": "clear", "thin or broken cloud": "partly", "cloud": "cloudy"}
 
 
@@ -111,7 +110,7 @@ def main():
     a1.add_argument("--from", dest="start", required=True, help="UTC, e.g. 2026-11-14T21:00")
     a1.add_argument("--to", dest="end", required=True)
     a1.add_argument("--sky", required=True, choices=SKIES)
-    a1.add_argument("--by", default="host", choices=BY)
+    a1.add_argument("--by", default="station", choices=BY)
     a1.add_argument("--note", default="")
     a2 = sub.add_parser("scores")
     a2.add_argument("--data", default="data")

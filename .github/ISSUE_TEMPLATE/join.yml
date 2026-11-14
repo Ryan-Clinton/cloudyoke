@@ -1,14 +1,13 @@
 name: Join the network
-description: Add your sky. No sensor needed to start.
+description: Add a site with a £15 cloudyoke station or an existing cloud sensor.
 title: "Join: <your area>"
 labels: ["join"]
 body:
   - type: markdown
     attributes:
       value: |
-        Joining starts with a place. Your area gets Meteosat's cloud verdict every 10 minutes on
-        [the joined sites' page](https://ryanclinton.uk/cloudyoke/live/sites/), and what you see of the real sky is
-        what scores it. Equipment is optional and can come later. The steps are in [docs/join.md](https://github.com/Ryan-Clinton/cloudyoke/blob/main/docs/join.md).
+        A site joins with an infrared cloud sensor: the £15 Nano station, or a CloudWatcher, Boltwood or other
+        ASCOM sensor you already run. The steps are in [docs/join.md](https://github.com/Ryan-Clinton/cloudyoke/blob/main/docs/join.md).
 
         **This issue is public.** Give a town or area, never an address or exact coordinates. The page shows the
         area's name only.
@@ -23,17 +22,15 @@ body:
   - type: checkboxes
     id: have
     attributes:
-      label: What you have (tick any)
+      label: Which way in
       options:
-        - label: Just a view of the sky. I can say what it was doing on nights I'm out.
-        - label: A telescope or camera that images. Frames or subs with times would score the satellite.
-        - label: An existing cloud sensor (AAG CloudWatcher, Boltwood, other ASCOM ObservingConditions).
-        - label: I'd build the £15 station (Arduino Nano, MLX90614, BME280), or I already have the parts.
+        - label: I'll build the £15 station (Arduino Nano, MLX90614, BME280), or I already have the parts.
+        - label: I run an existing cloud sensor (AAG CloudWatcher, Boltwood, other ASCOM ObservingConditions).
   - type: textarea
     id: kit
     attributes:
       label: Your kit, if any
-      description: Camera and mount, imaging software, the sensor's make, a PC or Raspberry Pi that's on overnight.
+      description: Parts you already have, the sensor's make and driver, a PC or Raspberry Pi that's on overnight.
   - type: textarea
     id: help
     attributes:
