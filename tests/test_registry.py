@@ -41,6 +41,17 @@ class RegistryTest(unittest.TestCase):
         self.assertIsNone(keys.unit_for(key))
         self.assertIsNone(keys.unit_for(""))
 
+    def test_a_revocation_in_the_same_clock_tick_is_still_seen(self):
+        import os
+        keys = registry.Keys(self.root)
+        unit, key = registry.register(self.root, "home")
+        path = Path(self.root) / "stations.json"
+        before = path.stat().st_mtime_ns
+        self.assertEqual(keys.unit_for(key), unit)
+        registry.revoke(self.root, unit)
+        os.utime(path, ns=(before, before))           # the same mtime as before: only the inode and size differ
+        self.assertIsNone(keys.unit_for(key))
+
     def test_sites_are_snapped_and_given_their_public_cell(self):
         registry.add_site(self.root, "village", "Somewhere small", 54.1234, -7.4321)
         s = registry.sites(self.root)

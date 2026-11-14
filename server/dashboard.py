@@ -153,13 +153,13 @@ def bins(rows, minutes=5):
 
 def sources(root, site):
     """A site's references, nearest first: (key, kind, name, km from its public cell rounded to 5, compass)."""
+    # Which sources, their order and their distances all come from the public cell only: choosing them by the
+    # private cell would leak, through who is just inside the radius, what the public cell hides
+    public = {**site, "lat": site["public"][0], "lon": site["public"][1]}
     out = []
-    plat, plon = site["public"]
-    for key, r, km, _ in registry.references_near(root, site, max(RADIUS_KM.values())):
-        if km > RADIUS_KM.get(r["kind"], 0):
-            continue
-        pkm, way = registry.distance(plat, plon, r["lat"], r["lon"])
-        out.append((key, r["kind"], r["name"], int(5 * round(pkm / 5)), way))
+    for key, r, km, way in registry.references_near(root, public, max(RADIUS_KM.values())):
+        if km <= RADIUS_KM.get(r["kind"], 0):
+            out.append((key, r["kind"], r["name"], int(5 * round(km / 5)), way))
     return out
 
 

@@ -26,6 +26,7 @@ import os
 import re
 import secrets
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -182,16 +183,23 @@ class Keys:
     def __init__(self, root):
         self.path = Path(root) / "stations.json"
         self.stamp, self.by_hash = None, {}
+        self.lock = threading.Lock()
 
     def unit_for(self, key):
-        try:
-            stamp = self.path.stat().st_mtime_ns
-        except OSError:
-            stamp = None
-        if stamp != self.stamp:
-            self.stamp = stamp
-            self.by_hash = {s["key_sha256"]: u for u, s in _read(self.path).items() if not s.get("revoked")} if stamp else {}
-        return self.by_hash.get(_hash(key)) if key else None
+        # Every write replaces the file (a new inode), so (inode, size, mtime) changes on every write even within
+        # the clock's resolution; the new list is built before it and its stamp are swapped in together, under a
+        # lock, so no thread ever pairs a new stamp with an old list (a revoked key that keeps working)
+        with self.lock:
+            try:
+                st = self.path.stat()
+                stamp = (st.st_ino, st.st_size, st.st_mtime_ns)
+            except OSError:
+                stamp = None
+            if stamp != self.stamp:
+                by_hash = {s["key_sha256"]: u for u, s in _read(self.path).items() if not s.get("revoked")} if stamp else {}
+                self.by_hash, self.stamp = by_hash, stamp
+            by_hash = self.by_hash
+        return by_hash.get(_hash(key)) if key else None
 
 
 def main():
