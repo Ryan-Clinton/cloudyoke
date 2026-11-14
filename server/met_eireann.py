@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Met Éireann's ceilometers as reference sources: Malin Head, Finner and Belmullet by default.
+"""Met Éireann's ceilometers as reference sources: every one within 250 km of a site.
 
-    python server/met_eireann.py --data data --hours 6
+    python server/met_eireann.py --data data --sites --hours 6
+    python server/met_eireann.py --data data --stations 17,104 --hours 6
 
 Met Éireann's open-data EDR API (https://opendata2.met.ie/edr/docs) serves ceilometer readings every 15
 seconds: up to five cloud layers, each with its base (sent in hundreds of feet, stored in feet) and its cover
@@ -26,10 +27,13 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import registry
+
 API = "https://opendata2.met.ie/edr/collections/observations-ceilometer-nrt-15s/locations"
 AGENT = "cloudyoke (github.com/Ryan-Clinton/cloudyoke)"
-# Met Éireann's EDR location ids for the north-western ceilometers, upwind of Ballymoney in the usual weather
+# Names for the ceilometers whose names are known (the service's location list gives none)
 STATIONS = {17: "Malin Head", 104: "Finner", 105: "Belmullet"}
+RADIUS_KM = 250                     # a site's ceilometers: the service's, within this distance
 ATTRIBUTION = "Contains Met Éireann data, CC BY 4.0"
 
 
@@ -154,16 +158,45 @@ def window_start(now, hours, newest):
     return max(start, now - KEPT)
 
 
+def locations():
+    """Every ceilometer the service has: {id: (lat, lon)}."""
+    req = urllib.request.Request(f"{API}?f=json", headers={"User-Agent": AGENT})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        features = json.loads(r.read()).get("features", [])
+    return {int(f["id"]): (f["geometry"]["coordinates"][1], f["geometry"]["coordinates"][0]) for f in features}
+
+
+def near_sites(root, places, radius_km=RADIUS_KM):
+    """The ceilometers within radius_km of any site in the registry. Ireland's network only, so a site
+    elsewhere simply has none: each country's ceilometers are a collector of their own."""
+    sites = registry.sites(root).values()
+    return sorted(i for i, (lat, lon) in places.items()
+                  if any(registry.distance(s["lat"], s["lon"], lat, lon)[0] <= radius_km for s in sites))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="data")
     ap.add_argument("--hours", type=int, default=3,
                     help="at least this far back, and further to the newest reading already stored; the service keeps about 26")
-    ap.add_argument("--stations", default=",".join(str(s) for s in STATIONS), help="Met Éireann EDR location ids")
+    ap.add_argument("--stations", help="Met Éireann EDR location ids, comma-separated")
+    ap.add_argument("--sites", action="store_true", help=f"every ceilometer within {RADIUS_KM} km of a site in the registry")
     a = ap.parse_args()
     end = datetime.now(timezone.utc)
+    try:
+        places = locations()
+    except (OSError, ValueError, KeyError) as e:
+        sys.exit(f"met_eireann: couldn't list the ceilometers: {e}")
+    wanted = [int(s) for s in (a.stations or "").split(",") if s.strip()]
+    if a.sites:
+        wanted += [i for i in near_sites(a.data, places) if i not in wanted]
+    if not wanted:
+        print("met_eireann: no ceilometers near any site")
+        return
+    registry.note_references(a.data, {f"MET-{i}": {"kind": "ceilometer", "name": STATIONS.get(i, f"Met Éireann ceilometer {i}"),
+                                                    "lat": places[i][0], "lon": places[i][1]} for i in wanted if i in places})
     failed = 0
-    for station in (int(s) for s in a.stations.split(",") if s.strip()):
+    for station in wanted:
         start = window_start(end, max(1, a.hours), newest_stored(a.data, station, end))
         try:
             obs = unique(fetch_all(station, start, end))
@@ -171,8 +204,12 @@ def main():
             print(f"met_eireann: {station}: couldn't fetch: {e}")
             failed += 1
             continue
-        print(f"met_eireann: {STATIONS.get(station, station)}: {len(obs)} readings fetched, {store(a.data, obs)} new")
-    sys.exit(1 if failed and failed == len(a.stations.split(",")) else 0)
+        name = next((o["name"] for o in obs if o.get("name")), None)
+        if name and station in places:       # the service names a station only in its readings
+            registry.note_references(a.data, {f"MET-{station}": {"kind": "ceilometer", "name": name,
+                                                                 "lat": places[station][0], "lon": places[station][1]}})
+        print(f"met_eireann: {name or station}: {len(obs)} readings fetched, {store(a.data, obs)} new")
+    sys.exit(1 if failed and failed == len(wanted) else 0)
 
 
 if __name__ == "__main__":

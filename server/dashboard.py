@@ -1,57 +1,73 @@
 #!/usr/bin/env python3
-"""The reference-source dashboard: what each airport and ceilometer last reported, how old that is, and the
-last 24 hours side by side, west to east. Observations, not predictions.
+"""The network's pages: one per site, with what the references near it last reported (airports, ceilometers),
+the satellite's verdict, and the last 24 hours side by side; and an overview of every site. Observations,
+not predictions.
 
     python server/dashboard.py --data data --out www
 
-Writes www/index.html (a static page) and www/status.json (each source's latest observation and whether it
-is stale), so a source that stops is seen rather than silently missing. Run after the collectors.
-Standard library only.
+Each site's references are whatever the collectors have found near it (data/reference/index.json), so a new
+site gets its own the first time metar.py --sites runs, and nothing about any one place is written here.
+Writes www/index.html (the overview), www/sites/<site>/index.html and www/status.json (every site's sources,
+their latest observation and whether it is stale, so a source that stops is seen rather than silently
+missing). A site appears by its area's name only; distances are measured from its public cell
+(registry.py) and rounded to 5 km, so they can't be combined to find it. Standard library only.
 """
 import argparse
 import html
 import json
-import math
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-HOME = ("Ballymoney", 55.07, -6.51)
-# key, kind, name, lat, lon, minutes after which it is stale (airports close at night: Derry's silence is normal)
-SOURCES = [
-    ("MET-105", "ceilometer", "Belmullet", 54.2275, -10.0069, 180),
-    ("MET-104", "ceilometer", "Finner", 54.4939, -8.2431, 180),
-    ("MET-17", "ceilometer", "Malin Head", 55.3719, -7.3392, 180),
-    ("EGAE", "metar", "City of Derry Airport", 55.043, -7.161, 90),
-    ("EGAA", "metar", "Belfast International Airport", 54.654, -6.225, 90),
-    ("EGAC", "metar", "Belfast City Airport", 54.614, -5.873, 90),
-    ("EGPK", "metar", "Prestwick Airport", 55.509, -4.587, 90),
-]
+import registry
+import satellite
+import seen
+
+E = html.escape
+STALE_MIN = {"metar": 90, "ceilometer": 180}       # airports close at night, so their silence can be normal
+RADIUS_KM = {"metar": 150, "ceilometer": 250}      # what a site's page shows, as far as the collectors look
 OKTAS = {"FEW": 2, "SCT": 4, "BKN": 6, "OVC": 8, "VV": 8, "OVX": 8}
 CLEARISH = ("CAVOK", "NSC", "NCD", "CLR", "SKC")
 HIGH_FT = 16_000
 SHADE = ["#ffffff", "#eee6dc", "#ddd1c3", "#cbbba9", "#b9a58f", "#a38d76", "#8a735d", "#6f5a46", "#54412f"]
+VERDICT_SHADE = {"probably clear": "#ffffff", "thin or broken cloud": "#c9b7a2", "cloud": "#6f5a46"}
+SEEN_SHADE = {"clear": "#ffffff", "partly": "#c9b7a2", "cloudy": "#6f5a46"}
+KIND_TEXT = {"metar": "airport report (METAR)", "ceilometer": "ceilometer"}
+
+STYLE = """
+:root { --bg: #f3e9dd; --panel: #fbf5ee; --line: #dccbb6; --text: #2b231c; --dim: #6f6052; --accent: #a3242c; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, sans-serif; }
+main { max-width: 70rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); margin: .2rem 0; letter-spacing: -.02em; }
+.label { font: .75rem/1.4 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+p { max-width: 46rem; }
+.wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: .5rem; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { text-align: left; vertical-align: top; padding: .55rem .7rem; border-bottom: 1px solid var(--line); }
+th span, td span { display: block; color: var(--dim); font-weight: 400; font-size: .82rem; }
+td.obs { font-family: ui-monospace, monospace; font-size: .82rem; }
+tr.stale td, tr.stale th { color: var(--dim); }
+svg { display: block; width: 100%; min-width: 760px; height: auto; font: 12px system-ui, sans-serif; }
+svg .row { fill: var(--text); font-weight: 600; } svg .tick { fill: var(--dim); font-weight: 400; }
+.verdict { font-size: 1.4rem; font-weight: 650; margin: .4rem 0 0; }
+.key { font-size: .85rem; color: var(--dim); }
+a { color: var(--accent); }
+"""
 
 
-def place(lat, lon):
-    """Distance in km and a compass direction from Ballymoney."""
-    p1, p2, dl = math.radians(HOME[1]), math.radians(lat), math.radians(lon - HOME[2])
-    km = 6371 * math.acos(min(1, math.sin(p1) * math.sin(p2) + math.cos(p1) * math.cos(p2) * math.cos(dl)))
-    bearing = (math.degrees(math.atan2(math.sin(dl) * math.cos(p2),
-                                       math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl))) + 360) % 360
-    return round(km), ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][int((bearing + 22.5) // 45) % 8]
+def when(text):
+    return datetime.fromisoformat(text.replace("Z", "+00:00"))
 
 
-def load(root, key, since):
+def load(root, key, since, folder="reference"):
     rows = []
-    folder = Path(root) / "reference" / key
-    for path in sorted(folder.glob("*.jsonl")):
+    for path in sorted((Path(root) / folder / key).glob("*.jsonl")):
         if path.stem < since.strftime("%Y-%m-%d"):
             continue
         for line in path.read_text(encoding="utf-8").splitlines():
             try:
                 r = json.loads(line)
-                t = datetime.fromisoformat(r["obs_time"].replace("Z", "+00:00"))
+                t = when(r["obs_time"])
             except (ValueError, KeyError):
                 continue
             if t >= since:
@@ -68,7 +84,7 @@ def latest(root, key):
         for line in path.read_text(encoding="utf-8").splitlines():
             try:
                 r = json.loads(line)
-                t = datetime.fromisoformat(r["obs_time"].replace("Z", "+00:00"))
+                t = when(r["obs_time"])
             except (ValueError, KeyError):
                 continue
             if best[0] is None or t > best[0]:
@@ -135,23 +151,47 @@ def bins(rows, minutes=5):
     return result
 
 
-def timeline(root, now):
-    """24 hours, one row per source west to east, shaded by how much of the sky each observation reports
-    covered; a dark tick above a row marks a layer at 16,000 ft or higher (cirrus height)."""
+def sources(root, site):
+    """A site's references, nearest first: (key, kind, name, km from its public cell rounded to 5, compass)."""
+    out = []
+    plat, plon = site["public"]
+    for key, r, km, _ in registry.references_near(root, site, max(RADIUS_KM.values())):
+        if km > RADIUS_KM.get(r["kind"], 0):
+            continue
+        pkm, way = registry.distance(plat, plon, r["lat"], r["lon"])
+        out.append((key, r["kind"], r["name"], int(5 * round(pkm / 5)), way))
+    return out
+
+
+def timeline(root, now, srcs, sat_rows=None):
+    """24 hours, one row per source, nearest first, shaded by how much of the sky each observation reports
+    covered; a dark tick above a row marks a layer at 16,000 ft or higher (cirrus height). The satellite's
+    verdicts for the site, when there are any, are the first row."""
     W, LEFT, ROW, TOP = 1000, 215, 30, 30
     start = now - timedelta(hours=24)
-    x = lambda t: LEFT + (t - start).total_seconds() / 86400 * (W - LEFT - 10)
-    order = sorted(SOURCES, key=lambda s: s[4])
-    H = TOP + ROW * len(order) + 40
-    out = [f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="The last 24 hours at each source, west to east">']
+    x = lambda t: LEFT + max(0.0, min(1.0, (t - start).total_seconds() / 86400)) * (W - LEFT - 10)
+    n_rows = len(srcs) + (1 if sat_rows is not None else 0)
+    H = TOP + ROW * max(n_rows, 1) + 40
+    out = [f'<svg viewBox="0 0 {W} {H}" role="img" aria-label="The last 24 hours at each source, nearest first">']
     for h in range(0, 25, 3):
         t = start + timedelta(hours=h)
         out.append(f'<line x1="{x(t):.1f}" x2="{x(t):.1f}" y1="{TOP - 6}" y2="{H - 34}" stroke="#e6dacb"/>'
                    f'<text x="{x(t):.1f}" y="{H - 18}" text-anchor="middle" class="tick">{t:%H:%M}</text>')
-    for i, (key, kind, name, lat, lon, _) in enumerate(order):
+    i = 0
+    if sat_rows is not None:
+        y = TOP
+        out.append(f'<text x="{LEFT - 8}" y="{y + 17}" text-anchor="end" class="row">Meteosat <tspan class="tick">overhead</tspan></text>')
+        for t, r in sat_rows:
+            x1, x2 = x(t), x(t + timedelta(minutes=satellite.STEP_MIN))
+            out.append(f'<rect x="{x1:.1f}" y="{y + 4}" width="{x2 - x1:.1f}" height="{ROW - 10}" fill="{VERDICT_SHADE.get(r["verdict"], "#fff")}">'
+                       f'<title>{t:%H:%M} UTC: {E(r["verdict"])} (margin {r["margin"]})</title></rect>')
+        if not sat_rows:
+            out.append(f'<text x="{LEFT + 6}" y="{y + 17}" class="tick">no satellite verdicts in the last 24 hours</text>')
+        i = 1
+    for key, kind, name, km, way in srcs:
         y = TOP + i * ROW
-        km, way = place(lat, lon)
-        out.append(f'<text x="{LEFT - 8}" y="{y + 17}" text-anchor="end" class="row">{html.escape(name.replace(" Airport", ""))} '
+        i += 1
+        out.append(f'<text x="{LEFT - 8}" y="{y + 17}" text-anchor="end" class="row">{E(name.replace(" Airport", ""))} '
                    f'<tspan class="tick">{km} km {way}</tspan></text>')
         rows = load(root, key, start)
         if kind == "ceilometer":
@@ -164,7 +204,7 @@ def timeline(root, now):
             code = r.get("cover") if kind == "metar" else None
             label = r.get("raw") if kind == "metar" else f'{r["obs_time"]}, 5 minutes: {r.get("summary", describe(kind, r))}'
             out.append(f'<rect x="{x1:.1f}" y="{y + 4}" width="{x2 - x1:.1f}" height="{ROW - 10}" fill="{SHADE[n]}"'
-                       f'{" stroke=\"#8a735d\" stroke-width=\".4\"" if code in CLEARISH else ""}><title>{html.escape(label)}</title></rect>')
+                       f'{" stroke=\"#8a735d\" stroke-width=\".4\"" if code in CLEARISH else ""}><title>{E(label)}</title></rect>')
             if high:
                 out.append(f'<rect x="{x1:.1f}" y="{y}" width="{x2 - x1:.1f}" height="3" fill="#24408f"/>')
         if not rows:
@@ -173,79 +213,111 @@ def timeline(root, now):
     return "\n".join(out)
 
 
-def build(root, out_dir, now=None):
-    now = now or datetime.now(timezone.utc)
-    status, rows = [], []
-    for key, kind, name, lat, lon, stale_after in sorted(SOURCES, key=lambda s: s[4]):
-        km, way = place(lat, lon)
-        t, r = latest(root, key)
-        minutes = (now - t).total_seconds() / 60 if t else None
-        stale = minutes is None or minutes > stale_after
-        status.append({"source": key, "kind": kind, "name": name, "distance_km": km, "direction": way,
-                       "latest": t.strftime("%Y-%m-%dT%H:%M:%SZ") if t else None,
-                       "age_minutes": round(minutes) if minutes is not None else None, "stale": stale})
-        if stale and kind == "metar" and minutes is not None:
-            note = "no report since then (the airport may be closed)"
-        elif stale:
-            note = "stale: check the collector"
-        else:
-            note = ""
-        rows.append(f'<tr class="{"stale" if stale else ""}"><th scope="row">{html.escape(name)}'
-                    f'<span>{"airport report (METAR)" if kind == "metar" else "Met Éireann ceilometer"}</span></th>'
-                    f'<td>{km} km {way}</td><td>{f"{t:%d %b %H:%M}" if t else "none yet"}<span>'
-                    f'{age_text(minutes) if minutes is not None else ""}{" · " + note if note else ""}</span></td>'
-                    f'<td class="obs">{html.escape(describe(kind, r)) if r else ""}</td></tr>')
-    page = f"""<!doctype html>
+def page(title, description, body):
+    return f"""<!doctype html>
 <html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>cloudyoke reference data</title>
-<meta name="description" content="What the airports and Met Éireann ceilometers around Ballymoney last reported, and the last 24 hours, west to east.">
-<style>
-:root {{ --bg: #f3e9dd; --panel: #fbf5ee; --line: #dccbb6; --text: #2b231c; --dim: #6f6052; --accent: #a3242c; }}
-body {{ margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 system-ui, sans-serif; }}
-main {{ max-width: 70rem; margin: 0 auto; padding: 2rem 1rem 4rem; }}
-h1 {{ font-size: clamp(1.8rem, 5vw, 2.6rem); margin: .2rem 0; letter-spacing: -.02em; }}
-.label {{ font: .75rem/1.4 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }}
-p {{ max-width: 46rem; }}
-.wrap {{ overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: .5rem; }}
-table {{ border-collapse: collapse; width: 100%; font-size: .92rem; }}
-th, td {{ text-align: left; vertical-align: top; padding: .55rem .7rem; border-bottom: 1px solid var(--line); }}
-th span, td span {{ display: block; color: var(--dim); font-weight: 400; font-size: .82rem; }}
-td.obs {{ font-family: ui-monospace, monospace; font-size: .82rem; }}
-tr.stale td, tr.stale th {{ color: var(--dim); }}
-svg {{ display: block; width: 100%; min-width: 760px; height: auto; font: 12px system-ui, sans-serif; }}
-svg .row {{ fill: var(--text); font-weight: 600; }} svg .tick {{ fill: var(--dim); font-weight: 400; }}
-.key {{ font-size: .85rem; color: var(--dim); }}
-a {{ color: var(--accent); }}
-</style></head><body><main>
-<p class="label">cloudyoke · reference data · observations, not predictions</p>
-<h1>What the sky around Ballymoney is reporting</h1>
-<p>Updated every 30 minutes, last at {now:%d %b %Y %H:%M} UTC. These are airport weather reports and Met Éireann
-ceilometers, collected as references for cloudyoke&rsquo;s own sensors, which aren&rsquo;t running yet. Each sees
-something different: airport reports leave out any cloud above 5,000 ft, and a ceilometer sees only one point straight
-overhead.</p>
-<h2>Latest from each source</h2>
-<div class="wrap"><table><thead><tr><th>Source</th><th>From Ballymoney</th><th>Latest (UTC)</th><th>As reported</th></tr></thead>
-<tbody>{"".join(rows)}</tbody></table></div>
-<h2>The last 24 hours, west to east</h2>
-<div class="wrap">{timeline(root, now)}</div>
-<p class="key">Darker means more of the sky reported covered (in eighths). White outlined: a code like CAVOK or NCD, which
-is not the same as a clear sky. Blue tick above a row: a ceilometer layer at 16,000 ft or higher, cirrus height. Blank:
-no observations (airports close at night). Whether a change at one source shows up later at the next is one of the
-things cloudyoke is collecting this data to test.</p>
+<title>{E(title)}</title>
+<meta name="description" content="{E(description, quote=True)}">
+<style>{STYLE}</style></head><body><main>
+{body}
 <p class="key">Sources: airport reports from the Aviation Weather Center (aviationweather.gov). Contains Met Éireann data,
-CC BY 4.0. Code and method: <a href="https://github.com/Ryan-Clinton/cloudyoke">github.com/Ryan-Clinton/cloudyoke</a> ·
-<a href="sites/">joined sites: the satellite&rsquo;s view of each</a> ·
+CC BY 4.0. Contains EUMETSAT data, © EUMETSAT. Code and method:
+<a href="https://github.com/Ryan-Clinton/cloudyoke">github.com/Ryan-Clinton/cloudyoke</a> ·
 <a href="/cloudyoke/">about cloudyoke</a></p>
 </main></body></html>
 """
+
+
+def site_status(root, sid, site, now):
+    srcs, rows = [], []
+    found = sources(root, site)
+    for key, kind, name, km, way in found:
+        t, r = latest(root, key)
+        minutes = (now - t).total_seconds() / 60 if t else None
+        stale = minutes is None or minutes > STALE_MIN.get(kind, 90)
+        srcs.append({"source": key, "kind": kind, "name": name, "distance_km": km, "direction": way,
+                     "latest": t.strftime("%Y-%m-%dT%H:%M:%SZ") if t else None,
+                     "age_minutes": round(minutes) if minutes is not None else None, "stale": stale})
+        note = ("no report since then (the airport may be closed)" if stale and kind == "metar" and minutes is not None
+                else "stale: check the collector" if stale else "")
+        rows.append(f'<tr class="{"stale" if stale else ""}"><th scope="row">{E(name)}<span>{KIND_TEXT.get(kind, kind)}</span></th>'
+                    f'<td>{km} km {way}</td><td>{f"{t:%d %b %H:%M}" if t else "none yet"}<span>'
+                    f'{age_text(minutes) if minutes is not None else ""}{" · " + note if note else ""}</span></td>'
+                    f'<td class="obs">{E(describe(kind, r)) if r else ""}</td></tr>')
+    sat_rows = load(root, sid, now - timedelta(hours=24), folder="satellite")
+    t, r = sat_rows[-1] if sat_rows else (None, None)
+    minutes = (now - t).total_seconds() / 60 if t else None
+    sat = {"latest": r["obs_time"] if r else None, "verdict": r["verdict"] if r else None,
+           "margin": r["margin"] if r else None, "age_minutes": round(minutes) if minutes is not None else None,
+           "stale": minutes is None or minutes > satellite.STALE_MIN}
+    return found, srcs, rows, sat_rows, sat
+
+
+def site_page(root, sid, site, now):
+    found, srcs, rows, sat_rows, sat = site_status(root, sid, site, now)
+    sc = seen.score(root, sid)
+    if sat["verdict"]:
+        sat_html = (f'<p class="verdict">{E(sat["verdict"])}</p><p class="key">Meteosat&rsquo;s 10.5 µm picture of '
+                    f'{sat["latest"][11:16]} UTC, {sat["age_minutes"]} min ago{" · stale" if sat["stale"] else ""}; margin '
+                    f'{sat["margin"]} (over 20 is cloud, under 10 probably clear). A rough, uncalibrated reference: the '
+                    f'site&rsquo;s brightness against the darkest tenth of the 400 km round it.'
+                    + (f" Scored against the site&rsquo;s sensor: agreed {sc['agree']} of {sc['n']}." if sc["n"] else "") + "</p>")
+    else:
+        sat_html = '<p class="key">No satellite verdict yet (Meteosat sees Europe and Africa only).</p>'
+    table = (f'<div class="wrap"><table><thead><tr><th>Source</th><th>Distance</th><th>Latest (UTC)</th><th>As reported</th>'
+             f'</tr></thead><tbody>{"".join(rows)}</tbody></table></div>' if rows
+             else '<p>No airports or ceilometers found nearby yet: they appear after the next collection.</p>')
+    body = f"""<p class="label">cloudyoke · {E(site["area"])} · observations, not predictions</p>
+<h1>The sky around {E(site["area"])}</h1>
+<p>Updated every 10 to 30 minutes, last at {now:%d %b %Y %H:%M} UTC. Every airport within {RADIUS_KM["metar"]} km and
+ceilometer within {RADIUS_KM["ceilometer"]} km, found by distance, and the satellite overhead: references for the
+site&rsquo;s own sensor. Each sees something different: airport reports leave out cloud above 5,000 ft (CAVOK) or
+12,000 ft (NCD), a ceilometer sees one point straight overhead, and the satellite sees kilometres at once.</p>
+<h2>The satellite overhead</h2>
+{sat_html}
+<h2>Latest from each source</h2>
+{table}
+<h2>The last 24 hours, nearest first</h2>
+<div class="wrap">{timeline(root, now, found, sat_rows)}</div>
+<p class="key">Darker means more of the sky reported covered (in eighths). White outlined: a code like CAVOK or NCD, which
+is not the same as a clear sky. Blue tick above a row: a ceilometer layer at 16,000 ft or higher, cirrus height. Blank: no
+observations (airports close at night). Distances are from the site&rsquo;s area, to the nearest 5 km.
+<a href="../../">All sites</a></p>"""
+    return page(f"cloudyoke: {site['area']}", f"What the airports, ceilometers and satellite around {site['area']} last reported.", body), \
+        {"site": sid, "area": site["area"], "joined_as": site.get("as", "station"), "satellite": sat, "sources": srcs}
+
+
+def build(root, out_dir, now=None):
+    now = now or datetime.now(timezone.utc)
     out = Path(out_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    for name, text in (("index.html", page), ("status.json", json.dumps({"generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                                                                        "sources": status}, indent=1))):
-        tmp = out / f".{name}.part"           # written whole, then moved into place, so a reader never sees half a page
+    status, cards = [], []
+    files = {}
+    for sid, site in sorted(registry.sites(root).items(), key=lambda kv: kv[1]["area"]):
+        html_text, st = site_page(root, sid, site, now)
+        files[f"sites/{sid}/index.html"] = html_text
+        status.append(st)
+        sat = st["satellite"]
+        fresh = sum(1 for s in st["sources"] if not s["stale"])
+        cards.append(f'<tr><th scope="row"><a href="sites/{E(sid)}/">{E(st["area"])}</a><span>{E(st["joined_as"])}</span></th>'
+                     f'<td>{E(sat["verdict"] or "no verdict yet")}<span>{"stale" if sat["stale"] else (str(sat["age_minutes"]) + " min ago") if sat["latest"] else ""}</span></td>'
+                     f'<td>{len(st["sources"])} nearby<span>{fresh} reporting now</span></td></tr>')
+    body = f"""<p class="label">cloudyoke · the network · observations, not predictions</p>
+<h1>Every site&rsquo;s sky</h1>
+<p>Updated every 10 to 30 minutes, last at {now:%d %b %Y %H:%M} UTC. Each site has its own page: the satellite&rsquo;s
+rough verdict overhead and every airport and ceilometer near it, found by distance. Sites are shown by their
+area&rsquo;s name only. To join: <a href="https://github.com/Ryan-Clinton/cloudyoke/blob/main/docs/join.md">docs/join.md</a>.</p>
+<div class="wrap"><table><thead><tr><th>Site</th><th>Satellite overhead</th><th>References</th></tr></thead>
+<tbody>{"".join(cards) or '<tr><td colspan="3">No sites yet.</td></tr>'}</tbody></table></div>"""
+    files["index.html"] = page("cloudyoke live", "Every cloudyoke site: the satellite overhead and the airports and ceilometers near it.", body)
+    files["sites/index.html"] = '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=../"><a href="../">All sites</a>'
+    files["status.json"] = json.dumps({"generated": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "sites": status}, indent=1)
+    for name, text in files.items():
+        path = out / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(f".{path.name}.part")      # written whole, then moved into place, so a reader never sees half a page
         tmp.write_text(text, encoding="utf-8")
         os.chmod(tmp, 0o644)
-        os.replace(tmp, out / name)
+        os.replace(tmp, path)
     return status
 
 
@@ -254,8 +326,9 @@ def main():
     ap.add_argument("--data", default="data")
     ap.add_argument("--out", default="www")
     a = ap.parse_args()
-    stale = [s["name"] for s in build(a.data, a.out) if s["stale"]]
-    print(f"dashboard: written; stale: {', '.join(stale) if stale else 'none'}")
+    status = build(a.data, a.out)
+    stale = [f"{s['site']}/{x['source']}" for s in status for x in s["sources"] if x["stale"]]
+    print(f"dashboard: {len(status)} sites; stale: {', '.join(stale) if stale else 'none'}")
 
 
 if __name__ == "__main__":

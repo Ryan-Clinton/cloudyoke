@@ -3,7 +3,8 @@
 
     python server/night_graph.py --data data --unit cy-0001 --night 2026-11-20 > night.svg
 
-A night runs from 12:00 UTC on the given date to 12:00 UTC the next day. Lines break wherever readings
+A night runs from local solar noon on the given date to solar noon the next day, centred on the site's solar
+midnight (its longitude from the registry; --lon to give one), drawn in UTC. Lines break wherever readings
 are more than 3 minutes apart, so a gap in the data shows as a gap, never as a line drawn across it.
 Readings flagged by the station are drawn as small marks below the chart. Standard library only.
 """
@@ -29,11 +30,25 @@ def value(v):
     return v
 
 
-def load(root, unit, night):
-    start = datetime.combine(night, datetime.min.time(), timezone.utc) + timedelta(hours=12)
+def night_start(night, lon):
+    """Local solar noon on the evening's date, in UTC: a night is centred on the site's solar midnight, so it is
+    whole wherever the site is (12:00 UTC is right only near the Greenwich meridian)."""
+    noon = datetime.combine(night, datetime.min.time(), timezone.utc) + timedelta(hours=12 - lon / 15)
+    return noon.replace(second=0, microsecond=0)
+
+
+def site_lon(root, unit):
+    """The station's site's longitude from the registry, or 0 (Greenwich) when it has none."""
+    import registry
+    site = registry.site_of(root, unit)
+    return site["lon"] if site else 0.0
+
+
+def load(root, unit, night, lon=None):
+    start = night_start(night, site_lon(root, unit) if lon is None else lon)
     end = start + timedelta(days=1)
     rows = []
-    for day in (night, night + timedelta(days=1)):
+    for day in (start.date() + timedelta(days=k) for k in range((end.date() - start.date()).days + 1)):
         path = Path(root) / unit / f"{day.isoformat()}.jsonl"
         if not path.exists():
             continue
@@ -87,7 +102,7 @@ def draw(unit, start, end, rows, reference=None):
     y = lambda v: TOP + (hi - min(max(v, lo), hi)) / (hi - lo) * (H - TOP - BOTTOM)
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {total_h}" font-family="sans-serif" font-size="12">',
            f'<rect width="{W}" height="{total_h}" fill="#fbf5ee"/>',
-           f'<text x="{LEFT}" y="18" font-weight="bold">{html.escape(unit)} · night of {start.date().isoformat()} (UTC) · '
+           f'<text x="{LEFT}" y="18" font-weight="bold">{html.escape(unit)} · night of {start.date().isoformat()}, solar midnight {start + timedelta(hours=12):%H:%M} UTC · '
            f'{len(rows)} readings</text>']
     pretend = sum(1 for _, r in rows if r.get("hw") == "pretend")
     if pretend:                       # made-up readings from pretend_station.py must never pass for real ones
@@ -158,8 +173,9 @@ def main():
     ap.add_argument("--unit", required=True)
     ap.add_argument("--night", required=True, help="the evening's date, YYYY-MM-DD")
     ap.add_argument("--reference", help="an airport's ICAO code, e.g. EGAE, to show its reports under the chart")
+    ap.add_argument("--lon", type=float, help="the site's longitude, when the station isn't in the registry")
     a = ap.parse_args()
-    start, end, rows = load(a.data, a.unit, datetime.strptime(a.night, "%Y-%m-%d").date())
+    start, end, rows = load(a.data, a.unit, datetime.strptime(a.night, "%Y-%m-%d").date(), a.lon)
     reference = None
     if a.reference:
         import metar

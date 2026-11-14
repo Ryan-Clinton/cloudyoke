@@ -284,7 +284,14 @@ On the server behind ryanclinton.uk.
 
 - A host registers on the site and gets a unit id (`cy-0001`) and a secret key,
   shown once. The installer page (stage 4) writes both into the unit over the
-  USB cable, with the WiFi details; until then Ryan does it by hand.
+  USB cable, with the WiFi details. Until the sign-up page exists, the
+  maintainer runs `server/registry.py register` (14 November 2026), which keeps
+  only the key's SHA-256. The receiver re-reads the registry whenever it
+  changes, so neither registering nor revoking needs a restart.
+- **Every place-specific fact comes from the site's record,** never from the
+  code: its airports and ceilometers (found by distance, section 5.3.1), its
+  night (centred on its solar midnight, from its longitude), the satellite's
+  view of it, and the cell its pages may show (section 6).
 - Registration records the setup, because different setups read differently
   (for a bridged sensor, also its device model, driver name and version, and
   each capability's processing, section 3.1.4):
@@ -293,7 +300,7 @@ On the server behind ryanclinton.uk.
   roof), and the height above ground. A change of any of these is a new setup
   row with its date, so readings are always judged against the setup they were
   taken with.
-- **Revoking.** Ryan can revoke a key; the server answers 401 and keeps
+- **Revoking.** The maintainer can revoke a key; the server answers 401 and keeps
   nothing. A lost or stolen unit is revoked and a new key issued.
 - **Replacing.** A replacement board keeps the unit id (the place's history
   carries on) with a new key and a new setup row; readings from the old key
@@ -373,9 +380,13 @@ rate-limits the route, as it does `/forms/send`.
 ### 5.3.1 Reference sources: airport reports
 
 Airport weather reports (METARs) are collected alongside the stations from the
-start as a check on the stations (section 4): City of Derry (EGAE), Belfast
-International (EGAA), Belfast City (EGAC) and Prestwick (EGPK) since 10
-November 2026. The two Belfast airports report AUTO NCD at night, kept as NCD. A
+start as a check on the stations (section 4). Since 14 November 2026 each site's
+airports are found, not listed: every airport reporting within 150 km of the
+site (`metar.py --sites`), its name and position noted in
+`data/reference/index.json`, so a site anywhere gets its own the first time the
+collector runs. (From 10 November it was four fixed airports round Ballymoney:
+City of Derry, Belfast International, Belfast City and Prestwick.) Airports
+that report AUTO NCD at night, as both Belfast airports do, are kept as NCD. A
 reference source is not a station: it is never on the map as one, never
 judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
 
@@ -400,9 +411,9 @@ judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
   `server/night_graph.py --reference EGAE` lines the airport's reports up
   under a station's night, for the comparison stage 1 needs (section 9.2).
 
-**Met Éireann's ceilometers** (since 10 November 2026): Malin Head (about 70
-km north-west, upwind in the usual weather), Finner and Belmullet, from Met
-Éireann's open-data EDR API (`server/met_eireann.py`, CC BY 4.0, "Contains Met
+**Met Éireann's ceilometers** (since 10 November 2026; since 14 November every
+one within 250 km of a site, found from the service's own list of its 14):
+from Met Éireann's open-data EDR API (`server/met_eireann.py`, CC BY 4.0, "Contains Met
 Éireann data"). Each reading gives up to five cloud layers with base in feet and
 cover in oktas, 9 meaning the sky is hidden. The service is marked
 experimental: it keeps about 26 hours, runs about an hour behind, and answers
@@ -412,12 +423,16 @@ reading already stored, up to 26 hours: on 10 to 11 November the feed published
 nothing after 14:30 for almost a day, then the whole backlog at once, and a
 fixed 3-hour window missed it (recovered by hand; `docs/nights/2026-11-10.md`
 compares that night's sources with a telescope's view). Like the airports' ceilometers it
-sees only straight up, so nothing it reports is turned into "clear".
+sees only straight up, so nothing it reports is turned into "clear". Other
+countries' ceilometer networks (DWD, KNMI, the Met Office) would each be a
+collector of their own, found by distance the same way.
 
-**The reference dashboard** (`server/dashboard.py`, ryanclinton.uk/cloudyoke/live/),
-rebuilt after each collection: every source's distance and direction from
-Ballymoney, its latest report as reported and how old it is, and the last 24
-hours side by side, west to east, shaded by reported cover with a mark for
+**The sites' pages** (`server/dashboard.py`, ryanclinton.uk/cloudyoke/live/),
+rebuilt after each collection: an overview of every site, and a page a site with
+the satellite overhead (5.3.2), every nearby source's distance and direction
+(from the site's public cell, rounded to 5 km, so distances can't be combined to
+find it), its latest report as reported and how old it is, and the last 24
+hours side by side, nearest first, shaded by reported cover with a mark for
 ceilometer layers at 16,000 ft or higher. A source past its expected interval
 (90 minutes for an airport, 3 hours for a ceilometer) is shown stale and listed
 in `status.json`, so one that stops is seen, not silently missing. Labelled

@@ -1,6 +1,5 @@
-# Airport weather reports as a reference source (docs/spec.md 5.3.1), every 30 minutes: City of Derry (EGAE),
-# Belfast International (EGAA), Belfast City (EGAC) and Prestwick (EGPK). Belfast's night reports are AUTO NCD,
-# kept as NCD, never as clear.
+# Reference sources (docs/spec.md 5.3.1), every 30 minutes, for every site in the registry: each airport within
+# 150 km, found by distance, so a new site needs nothing added here. AUTO NCD reports are kept as NCD, never as clear.
 # One API request returns at most about 13 days, so history not collected is lost. Standard library only.
 [Unit]
 Description=cloudyoke: collect reference reports (airports, Met Éireann ceilometers) and rebuild the dashboard
@@ -13,13 +12,13 @@ User=cloudyoke
 Group=cloudyoke
 WorkingDirectory=/srv/cloudyoke/code
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --ids EGAE,EGAA,EGAC,EGPK --hours 6
-# Met Éireann's ceilometers (Malin Head, Finner, Belmullet), after the airports; '-' so a failure here never
+ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --sites --hours 3
+# Met Éireann's ceilometers within 250 km of a site (Ireland's network; none for sites elsewhere), after the airports; '-' so a failure here never
 # stops the airport fetch from counting as done. Each fetch reaches back to the newest reading already stored
 # (up to 26 hours), so a feed that stalls and then publishes its backlog is still caught. CC BY 4.0,
 # "Contains Met Éireann data"
-ExecStart=-/usr/bin/python3 server/met_eireann.py --data /srv/cloudyoke/data --hours 3
-# Then the reference dashboard (ryanclinton.uk/cloudyoke/live/) and status.json, so a stopped source shows as stale
+ExecStart=-/usr/bin/python3 server/met_eireann.py --data /srv/cloudyoke/data --sites --hours 3
+# Then every site's page (ryanclinton.uk/cloudyoke/live/) and status.json, so a stopped source shows as stale
 ExecStart=-/usr/bin/python3 server/dashboard.py --data /srv/cloudyoke/data --out /srv/cloudyoke/www
 MemoryMax=200M
 Nice=10

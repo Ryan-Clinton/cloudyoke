@@ -15,10 +15,10 @@ Public page: https://ryanclinton.uk/cloudyoke/
 13 and 18 November 2026, and the first station goes up in Ballymoney, County
 Antrim, Northern Ireland. The Nano-over-USB station's firmware is written
 ([firmware/nano-usb](firmware/nano-usb/README.md)); the ESP32's isn't. The
-server keeps airport and Met Éireann ceilometer reports as references
-([live](https://ryanclinton.uk/cloudyoke/live/)), and Meteosat's infrared
-verdict for each joined site every 10 minutes as another reference
-([joined sites](https://ryanclinton.uk/cloudyoke/live/sites/)). Next milestone:
+server keeps references for every site, found by distance: each airport within
+150 km, Met Éireann's ceilometers in Ireland, and Meteosat's infrared verdict
+overhead every 10 minutes ([live](https://ryanclinton.uk/cloudyoke/live/)).
+Next milestone:
 [first observational data](https://github.com/Ryan-Clinton/cloudyoke/milestone/1).
 
 | | |

@@ -36,6 +36,8 @@ import zlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import registry
+
 WMS = "https://view.eumetsat.int/geoserver/wms"
 CAPABILITIES = "https://view.eumetsat.int/geoserver/mtg_fd/ir105_hrfi/ows"
 LAYER = "mtg_fd:ir105_hrfi"
@@ -45,14 +47,11 @@ WIDTH, HEIGHT = 1110, 510
 PATCH = 4                           # the site's patch: this many pixels each side of its own, so 9 by 9
 CLEAR_PERCENTILE = 10
 CLOUD_ABOVE, CLEAR_BELOW = 20, 10
-CELL = 0.05
 STEP_MIN = 10                       # a new picture every 10 minutes
 STALE_MIN = 40                      # a newest picture older than this means the service has stopped
 
 
-def cell(lat, lon):
-    """The centre of the 0.05° cell a position falls in (spec 6): the only position a site is judged at."""
-    return (round((math.floor(lat / CELL) + 0.5) * CELL, 3), round((math.floor(lon / CELL) + 0.5) * CELL, 3))
+cell = registry.cell                # the centre of the 0.05° cell (spec 6): the only position a site is judged at
 
 
 def verdict(margin):
@@ -167,15 +166,8 @@ def look(lat, lon, when):
 
 
 def load_sites(root):
-    """data/sites.json: {"<id>": {"area": "Ballymoney, County Antrim", "lat": .., "lon": .., ...}}, kept on the
-    server only. Each site's position is snapped to its cell here, whatever the file holds."""
-    path = Path(root) / "sites.json"
-    if not path.exists():
-        return {}
-    sites = json.loads(path.read_text(encoding="utf-8"))
-    for s in sites.values():
-        s["lat"], s["lon"] = cell(s["lat"], s["lon"])
-    return sites
+    """The registry's sites, each already snapped to its 0.05° cell."""
+    return registry.sites(root)
 
 
 def kept_times(root, site):

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Airport weather reports (METARs) as a reference source, City of Derry (EGAE) first.
+"""Airport weather reports (METARs) as a reference source: every airport within 150 km of each site.
 
-    python server/metar.py --data data --ids EGAE --hours 360
+    python server/metar.py --data data --sites --hours 6         each site's airports, found by distance
+    python server/metar.py --data data --ids EGAE --hours 360    named airports (a backfill)
 
 Fetches from the Aviation Weather Center's free API, keeps every report once (by airport, observation
 time and the raw text, so a correction is kept beside the original) in data/reference/<ICAO>/<UTC date>.jsonl.
@@ -16,6 +17,7 @@ Standard library only.
 """
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -24,7 +26,10 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+import registry
+
 API = "https://aviationweather.gov/api/data/metar"
+RADIUS_KM = 150                                  # a site's airports: every one reporting within this distance
 AGENT = "cloudyoke (github.com/Ryan-Clinton/cloudyoke)"
 MILE_KM = 1.609344
 CODES = ("CAVOK", "NSC", "NCD", "CLR", "SKC")    # whole-sky codes as they appear in a report's text
@@ -128,19 +133,57 @@ def load(root, icao, start, end):
     return sorted(rows, key=lambda x: x[0])
 
 
+def fetch_near(lat, lon, hours, radius_km=RADIUS_KM):
+    """Every airport report within radius_km of a position: the API's box search, then the box's corners cut
+    off. Airports are found, not listed, so a new site gets its own without anyone choosing them."""
+    dlat = radius_km / 111.2
+    dlon = min(radius_km / (111.2 * max(math.cos(math.radians(lat)), 0.05)), 179)
+    box = f"{max(lat - dlat, -90):.2f},{max(lon - dlon, -180):.2f},{min(lat + dlat, 90):.2f},{min(lon + dlon, 180):.2f}"
+    url = f"{API}?{urllib.parse.urlencode({'bbox': box, 'format': 'json', 'hours': hours})}"
+    req = urllib.request.Request(url, headers={"User-Agent": AGENT})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        body = r.read()
+    records = json.loads(body) if body.strip() else []
+    return [m for m in records if m.get("lat") is not None and m.get("lon") is not None
+            and registry.distance(lat, lon, m["lat"], m["lon"])[0] <= radius_km]
+
+
+def note_positions(root, records):
+    """Each airport's name and position in the reference index, so pages can say how far it is from a site."""
+    registry.note_references(root, {m["icaoId"]: {"kind": "metar", "name": (m.get("name") or m["icaoId"]).split(",")[0],
+                                                   "lat": m["lat"], "lon": m["lon"]}
+                                    for m in records if m.get("icaoId") and m.get("lat") is not None})
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="data")
-    ap.add_argument("--ids", default="EGAE", help="ICAO codes, comma-separated")
+    ap.add_argument("--ids", help="ICAO codes, comma-separated")
+    ap.add_argument("--sites", action="store_true", help=f"every airport within {RADIUS_KM} km of each site in the registry")
     ap.add_argument("--hours", type=int, default=6, help="how far back to ask for; 360 on a first run")
     a = ap.parse_args()
-    ids = [i.strip().upper() for i in a.ids.split(",") if i.strip()]
-    try:
-        records = fetch(ids, a.hours)
-    except OSError as e:
-        sys.exit(f"metar: couldn't fetch: {e}")
-    new = store(a.data, [decode(m) for m in records if m.get("icaoId") and m.get("obsTime")])
-    print(f"metar: {len(records)} reports fetched, {new} new")
+    if not (a.ids or a.sites):
+        ap.error("give --ids, --sites or both")
+    records, problems = [], []
+    if a.ids:
+        try:
+            records += fetch([i.strip().upper() for i in a.ids.split(",") if i.strip()], a.hours)
+        except OSError as e:
+            problems.append(f"--ids: {e}")
+    if a.sites:
+        for sid, s in registry.sites(a.data).items():
+            try:
+                records += fetch_near(s["lat"], s["lon"], a.hours)
+            except OSError as e:
+                problems.append(f"{sid}: {e}")
+    if problems and not records:
+        sys.exit(f"metar: couldn't fetch: {'; '.join(problems)}")
+    records = [m for m in records if m.get("icaoId") and m.get("obsTime")]
+    note_positions(a.data, records)
+    new = store(a.data, [decode(m) for m in records])
+    airports = len({m["icaoId"] for m in records})
+    print(f"metar: {len(records)} reports from {airports} airports, {new} new"
+          + (f"; problems: {'; '.join(problems)}" if problems else ""))
 
 
 if __name__ == "__main__":

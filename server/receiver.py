@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """The minimum receiver for the first station: takes readings, checks them, stores them. No judging, no map.
 
-    python server/receiver.py --listen 127.0.0.1:8095 --data data --keys keys.json
+    python server/receiver.py --listen 127.0.0.1:8095 --data data
 
-keys.json maps each station to its secret: {"cy-0001": "long-random-string"}. A station POSTs to
+Station keys come from the registry (registry.py: data/stations.json, keys kept only as hashes, re-read whenever
+the file changes, revoked ones unknown); --keys keys.json ({"cy-0001": "trial-key"}) is for trials. A station POSTs to
 /cloudyoke/send with "Authorization: Bearer <secret>" and a body of one reading or a list of them
 (docs/spec.md 5.2). Each reading is checked (against schemas/reading.schema.json too, when the
 jsonschema package is installed), duplicates by (unit, boot, seq) are answered but not stored again,
@@ -151,7 +152,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(404, {"ok": False})
         auth = self.headers.get("Authorization", "")
         secret = auth[7:] if auth.startswith("Bearer ") else ""
-        unit = next((u for u, k in self.keys.items() if secret and hmac.compare_digest(k, secret)), None)
+        unit = self.keys.unit_for(secret)
         if unit is None:
             return self.reply(401, {"ok": False, "why": "unknown or revoked key"})
         try:
@@ -205,22 +206,35 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+class FixedKeys:
+    """Keys given directly ({"cy-0001": "secret"}), for tests and trials; the server uses registry.Keys."""
+
+    def __init__(self, keys):
+        self.keys = keys
+
+    def unit_for(self, secret):
+        return next((u for u, k in self.keys.items() if secret and hmac.compare_digest(k, secret)), None)
+
+
 def serve(listen, data, keys):
+    """keys: anything with unit_for(secret), or a plain {unit: secret} dict."""
     Handler.store = Store(data)
-    Handler.keys = keys
+    Handler.keys = FixedKeys(keys) if isinstance(keys, dict) else keys
     host, port = listen.rsplit(":", 1)
     return ThreadingHTTPServer((host, int(port)), Handler)
 
 
 def main():
+    import registry
     ap = argparse.ArgumentParser()
     ap.add_argument("--listen", default="127.0.0.1:8095")
     ap.add_argument("--data", default="data")
-    ap.add_argument("--keys", default="keys.json")
+    ap.add_argument("--keys", help="a {unit: secret} file for trials; without it, the registry's stations.json")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    keys = json.loads(Path(a.keys).read_text())
-    log.info("listening on %s, %d station keys, schema checks %s", a.listen, len(keys), "on" if SCHEMA else "basic only")
+    keys = json.loads(Path(a.keys).read_text()) if a.keys else registry.Keys(a.data)
+    log.info("listening on %s, keys from %s, schema checks %s", a.listen, a.keys or "the registry",
+             "on" if SCHEMA else "basic only")
     serve(a.listen, a.data, keys).serve_forever()
 
 

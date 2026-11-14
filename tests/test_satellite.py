@@ -12,7 +12,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).parent.parent / "server"))
 import satellite  # noqa: E402
 import seen  # noqa: E402
-import sites_page  # noqa: E402
+import dashboard  # noqa: E402
 
 NOW = datetime(2026, 11, 14, 22, 5, tzinfo=timezone.utc)
 
@@ -110,12 +110,13 @@ class CollectTest(unittest.TestCase):
         seen.add(self.root, "home", "2026-11-14T21:00", "2026-11-14T21:30", "clear", "station")
         s = seen.score(self.root, "home")
         self.assertEqual((s["n"], s["agree"], s["false_cloud"]), (3, 0, 3))
-        status = sites_page.build(self.root, self.root / "www", NOW)
-        self.assertEqual(status[0]["verdict"], "cloud")
-        page = (self.root / "www" / "sites" / "index.html").read_text()
+        status = dashboard.build(self.root, self.root / "www", NOW)
+        self.assertEqual(status[0]["satellite"]["verdict"], "cloud")
+        page = (self.root / "www" / "sites" / "home" / "index.html").read_text()
         self.assertIn("Ballymoney, County Antrim", page)
+        self.assertIn("agreed 0 of 3", page)
         for leak in ("55.07", "-6.51", "55.075", "-6.525"):
-            self.assertNotIn(leak, page + (self.root / "www" / "sites" / "status.json").read_text())
+            self.assertNotIn(leak, page + (self.root / "www" / "status.json").read_text())
 
     def test_a_report_must_end_after_it_starts(self):
         with self.assertRaises(ValueError):
