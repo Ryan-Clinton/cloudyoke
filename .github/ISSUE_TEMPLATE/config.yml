@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Join without a GitHub account
+  - name: Building a station, or want to join?
+    url: https://github.com/Ryan-Clinton/cloudyoke/discussions/9
+    about: Say hello and ask anything in Discussions. Issues are for specific pieces of work.
+  - name: No GitHub account
     url: https://ryanclinton.uk/cloudyoke/#join
     about: Leave an email and a general area on the project's page.
-  - name: Questions and ideas
-    url: https://github.com/Ryan-Clinton/cloudyoke/discussions
-    about: Anything that isn't a join or a specific piece of work.

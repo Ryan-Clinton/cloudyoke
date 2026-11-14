@@ -6,8 +6,8 @@ makes this the best time to question the design.
 
 ## Joining
 
-To add your area, with or without equipment: [docs/join.md](docs/join.md) and the
-[join issue form](https://github.com/Ryan-Clinton/cloudyoke/issues/new?template=join.yml).
+Building a station or bringing an existing sensor: [docs/join.md](docs/join.md), and say hello in the
+[welcome thread](https://github.com/Ryan-Clinton/cloudyoke/discussions/9).
 
 ## Where things go
 

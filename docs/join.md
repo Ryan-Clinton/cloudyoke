@@ -1,28 +1,27 @@
 # Joining
 
-A site joins with an infrared cloud sensor pointing straight up. There are two ways in:
+A site joins with an infrared cloud sensor pointing straight up:
 
 | You have | You do |
 |---|---|
 | About £15 and an evening | Build the station: an ESP32, an MLX90614 (BAA) and a BME280 in a weatherproof box, on your WiFi and an old phone charger, no computer ([hardware/bom.md](../hardware/bom.md)). Its firmware is being written ([issue 3](https://github.com/Ryan-Clinton/cloudyoke/issues/3)); parts can be ordered now |
 | An AAG CloudWatcher, Boltwood or other ASCOM ObservingConditions sensor | Help test the read-only bridge ([issue 7](https://github.com/Ryan-Clinton/cloudyoke/issues/7)) |
 
-## Steps
+## Talk
 
-1. **Join.** Open a [join issue](https://github.com/Ryan-Clinton/cloudyoke/issues/new?template=join.yml) with your
-   area and which way in. If you don't use GitHub, use the form on
-   [the project's page](https://ryanclinton.uk/cloudyoke/#join). Give a town or area, never an address.
-2. **Build or connect.** Help with parts and wiring goes in the issue.
-3. **Your site goes on the page.** On the [joined sites' page](https://ryanclinton.uk/cloudyoke/live/sites/) each
-   site shows by its area's name only ([spec §6](spec.md#6-hosts-privacy)). Meteosat's verdict for the site's
-   0.05° square is shown beside the sensor as a reference, as the airport reports are.
-4. **Sending.** Each sensor gets its own key. Outside stations start sending once the data licence is settled
-   ([issue 8](https://github.com/Ryan-Clinton/cloudyoke/issues/8)), so every host knows what they're agreeing
-   to before their first reading.
+Everything happens in [Discussions](https://github.com/Ryan-Clinton/cloudyoke/discussions). Say hello in the
+[welcome thread](https://github.com/Ryan-Clinton/cloudyoke/discussions/9) with roughly where you are (a town or
+area, never an address). Ask about parts and wiring in Q&A, and post your build in Show and tell. People without a
+GitHub account can use the form on [the project's page](https://ryanclinton.uk/cloudyoke/#join).
 
-## Leaving
+## Once a station works
 
-Say so on your issue or by email. Your site comes off the page, and its readings are deleted on request.
+Each station gets its own key, and its site goes on the
+[joined sites' page](https://ryanclinton.uk/cloudyoke/live/sites/) by its area's name only
+([spec §6](spec.md#6-hosts-privacy)), with Meteosat's verdict beside it as a reference. Outside stations start
+sending once the data licence is settled ([issue 8](https://github.com/Ryan-Clinton/cloudyoke/issues/8)), so every
+host knows what they're agreeing to before their first reading. A host can leave at any time; their site comes off
+the page and its readings are deleted on request.
 
 ## For the maintainer: adding a site
 

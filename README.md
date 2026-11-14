@@ -32,8 +32,8 @@ verdict for each joined site every 10 minutes as another reference
 A site joins with an infrared cloud sensor: the £15 ESP32 station on the
 house's WiFi (firmware in progress, issue 3), or a CloudWatcher, Boltwood or
 other ASCOM sensor already running. How:
-[docs/join.md](docs/join.md), or open a
-[join issue](https://github.com/Ryan-Clinton/cloudyoke/issues/new?template=join.yml).
+[docs/join.md](docs/join.md). Say hello and ask anything in the
+[welcome thread](https://github.com/Ryan-Clinton/cloudyoke/discussions/9).
 
 ## How a station measures cloud
 
