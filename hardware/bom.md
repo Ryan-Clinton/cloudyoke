@@ -1,8 +1,9 @@
 # Bill of materials and wiring
 
-Prototype hardware, not yet tested outdoors. Prices checked 9 November 2026;
-treat them as rough. Sources for every price are in
-[docs/spec.md §11.2](../docs/spec.md#112-parts-and-build).
+**The build guide, with every version (WiFi, wired, 4G; charger or solar; soldered or not), shop prices
+checked 14 November 2026 and bulk prices for a ring of stations, is [build.md](build.md).** This page is the
+original research of 9 November, kept for its notes; its prices were estimates, and the real ones came out
+higher (about £24 a station from AliExpress, £21 each for ten).
 
 ## Two ways to build one station
 

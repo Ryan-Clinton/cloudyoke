@@ -71,6 +71,11 @@ is used by the network.
 | USB supply, 1 A | power | one in a drawer, or about £5 | the same |
 | **Total (estimate)** | | **about £15 to £20** | **about £50 to £60** |
 
+Shop prices read on 14 November 2026 came out higher: about £24 a station from
+AliExpress (£21 each for ten), £55 solder-free from Amazon UK (£34 each for
+ten), £48 for the M5Stack build. Every version, with its prices:
+[hardware/build.md](../hardware/build.md).
+
 Running cost (estimate): about 0.2 to 0.5 W at the plug, a few kWh and about £1 a
 year, before any heater.
 

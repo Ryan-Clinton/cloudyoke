@@ -5,7 +5,8 @@ An open network of low-cost infrared sky sensors.
 Stations on walls and sheds measure the infrared temperature of the sky every
 minute and send their raw readings to one server, which judges the cloud cover
 over each station and keeps an open record for analysis. Built on ESP32
-boards, MLX90614 thermopiles and BME280 sensors, at about £15 to £20 a station.
+boards, MLX90614 thermopiles and BME280 sensors, at about £24 a station from
+AliExpress, £21 each for ten ([build guide](hardware/build.md)).
 
 Public page: https://ryanclinton.uk/cloudyoke/
 
@@ -29,7 +30,7 @@ Next milestone:
 
 ## Join
 
-A site joins with an infrared cloud sensor: the £15 ESP32 station on the
+A site joins with an infrared cloud sensor: the £24 ESP32 station on the
 house's WiFi (firmware in progress, issue 3), or a CloudWatcher, Boltwood or
 other ASCOM sensor already running. How:
 [docs/join.md](docs/join.md). Say hello and ask anything in the
@@ -79,7 +80,7 @@ beside the network's judgement, labelled as the maker's.
 
 ## Open questions
 
-- **Thin cloud:** whether a £20 station tells thin high cloud from clear sky.
+- **Thin cloud:** whether a £24 station tells thin high cloud from clear sky.
 - **Self-calibration:** whether each station can learn its own clear sky
   without hand-set thresholds.
 - **Agreement over distance:** two stations in one town, then 10 km apart,
@@ -111,7 +112,9 @@ from.
 
 ## Hardware
 
-Parts, prices and wiring: [hardware/bom.md](hardware/bom.md).
+How to build one, every version (WiFi, wired, 4G; charger or solar; soldered or
+solder-free), with shop prices and bulk prices for ten: [hardware/build.md](hardware/build.md).
+Planning a ring of stations round your site: [docs/ring.md](docs/ring.md).
 
 ## Contributing
 
