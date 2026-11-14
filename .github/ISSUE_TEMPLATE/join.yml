@@ -6,8 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        A site joins with an infrared cloud sensor: the £15 Nano station, or a CloudWatcher, Boltwood or other
-        ASCOM sensor you already run. The steps are in [docs/join.md](https://github.com/Ryan-Clinton/cloudyoke/blob/main/docs/join.md).
+        A site joins with an infrared cloud sensor: the £15 ESP32 station on your WiFi, or a CloudWatcher, Boltwood
+        or other ASCOM sensor you already run. The steps are in [docs/join.md](https://github.com/Ryan-Clinton/cloudyoke/blob/main/docs/join.md).
 
         **This issue is public.** Give a town or area, never an address or exact coordinates. The page shows the
         area's name only.
@@ -24,13 +24,13 @@ body:
     attributes:
       label: Which way in
       options:
-        - label: I'll build the £15 station (Arduino Nano, MLX90614, BME280), or I already have the parts.
+        - label: I'll build the £15 station (ESP32, MLX90614, BME280, on WiFi and a phone charger), or I already have the parts.
         - label: I run an existing cloud sensor (AAG CloudWatcher, Boltwood, other ASCOM ObservingConditions).
   - type: textarea
     id: kit
     attributes:
       label: Your kit, if any
-      description: Parts you already have, the sensor's make and driver, a PC or Raspberry Pi that's on overnight.
+      description: Parts you already have, or your sensor's make and driver.
   - type: textarea
     id: help
     attributes:

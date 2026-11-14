@@ -4,7 +4,7 @@ A site joins with an infrared cloud sensor pointing straight up. There are two w
 
 | You have | You do |
 |---|---|
-| About £15 and an evening | Build the Nano station: an Arduino Nano, an MLX90614 (BAA) and a BME280, on USB to a computer or Raspberry Pi that's on overnight ([firmware/nano-usb](../firmware/nano-usb/README.md), [hardware/bom.md](../hardware/bom.md)) |
+| About £15 and an evening | Build the station: an ESP32, an MLX90614 (BAA) and a BME280 in a weatherproof box, on your WiFi and an old phone charger, no computer ([hardware/bom.md](../hardware/bom.md)). Its firmware is being written ([issue 3](https://github.com/Ryan-Clinton/cloudyoke/issues/3)); parts can be ordered now |
 | An AAG CloudWatcher, Boltwood or other ASCOM ObservingConditions sensor | Help test the read-only bridge ([issue 7](https://github.com/Ryan-Clinton/cloudyoke/issues/7)) |
 
 ## Steps
@@ -18,8 +18,7 @@ A site joins with an infrared cloud sensor pointing straight up. There are two w
    0.05° square is shown beside the sensor as a reference, as the airport reports are.
 4. **Sending.** Each sensor gets its own key. Outside stations start sending once the data licence is settled
    ([issue 8](https://github.com/Ryan-Clinton/cloudyoke/issues/8)), so every host knows what they're agreeing
-   to before their first reading. Until then a Nano station keeps its readings on the host's own computer, in
-   the same format the server stores.
+   to before their first reading.
 
 ## Leaving
 

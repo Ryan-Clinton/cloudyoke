@@ -29,8 +29,9 @@ verdict for each joined site every 10 minutes as another reference
 
 ## Join
 
-A site joins with an infrared cloud sensor: the £15 Nano station, or a
-CloudWatcher, Boltwood or other ASCOM sensor already running. How:
+A site joins with an infrared cloud sensor: the £15 ESP32 station on the
+house's WiFi (firmware in progress, issue 3), or a CloudWatcher, Boltwood or
+other ASCOM sensor already running. How:
 [docs/join.md](docs/join.md), or open a
 [join issue](https://github.com/Ryan-Clinton/cloudyoke/issues/new?template=join.yml).
 
