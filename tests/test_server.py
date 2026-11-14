@@ -19,6 +19,7 @@ import pretend_station  # noqa: E402
 import receiver  # noqa: E402
 
 KEY = "test-secret-0001"
+NIGHT = date(2026, 11, 10)        # a night in the past: the receiver refuses readings dated more than a day ahead
 
 
 class ReceiverTest(unittest.TestCase):
@@ -49,7 +50,7 @@ class ReceiverTest(unittest.TestCase):
         return [json.loads(line) for p in sorted((self.data / unit).glob("*.jsonl")) for line in p.read_text().splitlines()]
 
     def reading(self, seq, **extra):
-        r = next(pretend_station.night("cy-0001", date(2026, 11, 20)))
+        r = next(pretend_station.night("cy-0001", NIGHT))
         r.update(seq=seq, **extra)
         return r
 
@@ -135,12 +136,12 @@ class ReceiverTest(unittest.TestCase):
         self.assertEqual(len(self.stored()), 1)
 
     def test_pretend_night_end_to_end_and_graph(self):
-        readings = list(pretend_station.night("cy-0001", date(2026, 11, 20)))
+        readings = list(pretend_station.night("cy-0001", NIGHT))
         for i in range(0, len(readings), 60):
             self.assertEqual(self.post(readings[i:i + 60])[0], 200)
         self.assertEqual(self.post(readings[:60])[1]["duplicates"], 60)
         self.assertEqual(len(self.stored()), len(readings))
-        start, end, rows = night_graph.load(self.data, "cy-0001", date(2026, 11, 20))
+        start, end, rows = night_graph.load(self.data, "cy-0001", NIGHT)
         self.assertEqual(len(rows), len(readings))
         svg = night_graph.draw("cy-0001", start, end, rows)
         self.assertTrue(svg.startswith("<svg") and svg.endswith("</svg>"))
