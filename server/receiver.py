@@ -49,9 +49,14 @@ def basic_problem(r):
     if r["schema"] != 1:
         return "unknown schema version"
     try:
-        datetime.fromisoformat(r["t"].replace("Z", "+00:00"))
+        t = datetime.fromisoformat(r["t"].replace("Z", "+00:00"))
     except ValueError:
         return "t is not a time"
+    t = t.astimezone(timezone.utc) if t.tzinfo else t.replace(tzinfo=timezone.utc)
+    if t > datetime.now(timezone.utc) + timedelta(days=1):
+        # A reading can't come from the future: a clock that far out is a fault, and storing it would open a day
+        # file, and a duplicate check, that no later reading would ever retire
+        return "t is more than a day ahead of the server's clock"
     if "source_offline" not in r["flags"] and r["source"] == "cloudyoke-esp32":
         readings = r.get("readings")
         if not isinstance(readings, dict) or not all(isinstance(readings.get(k), (int, float)) for k in ("sky_c", "air_c")):
@@ -86,8 +91,10 @@ class Store:
         return keys
 
     def _forget_old(self):
-        oldest = (datetime.now(timezone.utc) - timedelta(days=KEEP_DAYS)).strftime("%Y-%m-%d")
-        for key in [k for k in self.seen if k[1] < oldest]:
+        now = datetime.now(timezone.utc)
+        oldest = (now - timedelta(days=KEEP_DAYS)).strftime("%Y-%m-%d")
+        newest = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+        for key in [k for k in self.seen if not oldest <= k[1] <= newest]:
             del self.seen[key]
 
     def claim(self, unit, day, boot, seq):

@@ -74,6 +74,11 @@ class ReceiverTest(unittest.TestCase):
         self.assertTrue(fresh.claim("cy-0001", day, 1, 2))
         self.assertTrue(all(k[1] == day for k in fresh.seen), "only the reading's own day is loaded")
 
+    def test_a_reading_from_the_future_is_refused(self):
+        late = self.reading(1, t="2099-01-01T00:00:00Z")
+        self.assertEqual(self.post(late)[0], 400)
+        self.assertEqual(self.stored(), [])
+
     def test_wrong_or_missing_key(self):
         self.assertEqual(self.post(self.reading(1), key="nope")[0], 401)
         self.assertEqual(self.post(self.reading(1), key="")[0], 401)
