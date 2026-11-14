@@ -11,20 +11,31 @@ Public page: https://ryanclinton.uk/cloudyoke/
 
 ## Status
 
-**Early development. Nothing is built yet.** The first sensor hardware is due
-between 13 and 18 November 2026, and the first station goes up in Ballymoney,
-County Antrim, Northern Ireland. There is no firmware yet. The server side is
-only the minimum the first station needs: a receiver that stores its readings
-and a script that graphs a night ([server/](server/README.md)), tested with a
-pretend station. The first station's results decide the hardware. Next
-milestone: [first observational data](https://github.com/Ryan-Clinton/cloudyoke/milestone/1).
+**Early development, open to join.** The first sensor hardware is due between
+13 and 18 November 2026, and the first station goes up in Ballymoney, County
+Antrim, Northern Ireland. The Nano-over-USB station's firmware is written
+([firmware/nano-usb](firmware/nano-usb/README.md)); the ESP32's isn't. The
+server keeps airport and Met Éireann ceilometer reports as references
+([live](https://ryanclinton.uk/cloudyoke/live/)). It also judges every joined
+site from Meteosat's infrared picture every 10 minutes
+([joined sites](https://ryanclinton.uk/cloudyoke/live/sites/)), scored against
+what people there see. Next milestone:
+[first observational data](https://github.com/Ryan-Clinton/cloudyoke/milestone/1).
 
 | | |
 |---|---|
-| Phase | Parts on order |
+| Phase | Parts arriving; joining open |
 | Stations online | 0 |
-| Network | Planned |
-| Data | None yet |
+| Joined sites | Satellite verdicts every 10 minutes |
+| Data | Reference sources and satellite verdicts |
+
+## Join
+
+A place joins before any sensor does: the area goes on the joined sites' page
+with the satellite's verdict, and what people there see scores it. A telescope's
+frames, an existing cloud sensor or a £15 station add to it later. How:
+[docs/join.md](docs/join.md), or open a
+[join issue](https://github.com/Ryan-Clinton/cloudyoke/issues/new?template=join.yml).
 
 ## How a station measures cloud
 
@@ -105,8 +116,8 @@ Parts, prices and wiring: [hardware/bom.md](hardware/bom.md).
 ## Contributing
 
 Ideas, questions and suggested station locations go in Discussions; specific
-work goes in Issues. See [CONTRIBUTING.md](CONTRIBUTING.md). People who would
-host a station but don't use GitHub can leave an email and a general area on
+work goes in Issues. See [CONTRIBUTING.md](CONTRIBUTING.md). To add your sky,
+see [docs/join.md](docs/join.md). People who would join but don't use GitHub can leave an email and a general area on
 the [public page](https://ryanclinton.uk/cloudyoke/#join).
 
 ## Prior work

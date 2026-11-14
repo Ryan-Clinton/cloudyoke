@@ -7,7 +7,8 @@ night_graph.py and the airport comparison work on them unchanged.
     python server/serial_station.py --port COM5 --unit cy-0001 --data data          (Windows)
 
 By default it writes straight to data/<unit>/<UTC date>.jsonl, so no server is needed on the night.
-With --url and --key it POSTs to a receiver instead, keeping what it couldn't send and trying again.
+With --url and --key it also POSTs to a receiver, keeping what it couldn't send and trying again; the local
+copy is written either way, so a host always has their own readings.
 Needs the pyserial package (pip install pyserial). Readings are marked hw "nano-usb", so they are never
 mistaken for a WiFi station's. The computer's clock must be right (it normally is, set over the internet).
 """
@@ -104,7 +105,7 @@ def main():
     ap.add_argument("--port", required=True, help="the Nano's serial port, e.g. /dev/ttyUSB0 or COM5")
     ap.add_argument("--unit", default="cy-0001")
     ap.add_argument("--data", default="data")
-    ap.add_argument("--url", help="a receiver to POST to instead of writing files")
+    ap.add_argument("--url", help="a receiver to POST to as well as writing files")
     ap.add_argument("--key")
     a = ap.parse_args()
     try:
@@ -127,6 +128,7 @@ def main():
                         continue
                     seq += 1
                     r = reading(values, a.unit, boot, seq, datetime.now(timezone.utc))
+                    write_local(a.data, r)                        # always kept here too, sent or not
                     if a.url:
                         pending = (pending + [r])[-360:]          # six hours kept through a drop, as the spec says
                         try:
@@ -134,8 +136,6 @@ def main():
                                 pending = []
                         except OSError as e:
                             print(f"  couldn't send ({e}); {len(pending)} kept", flush=True)
-                    else:
-                        write_local(a.data, r)
                     shown = " ".join(f"{k}={v}" for k, v in r["readings"].items())
                     print(f"{r['t']} {shown} {' '.join(r['flags'])}".rstrip(), flush=True)
         except serial.SerialException as e:

@@ -234,6 +234,7 @@ no observations (airports close at night). Whether a change at one source shows 
 things cloudyoke is collecting this data to test.</p>
 <p class="key">Sources: airport reports from the Aviation Weather Center (aviationweather.gov). Contains Met Éireann data,
 CC BY 4.0. Code and method: <a href="https://github.com/Ryan-Clinton/cloudyoke">github.com/Ryan-Clinton/cloudyoke</a> ·
+<a href="sites/">joined sites: the satellite&rsquo;s view of each</a> ·
 <a href="/cloudyoke/">about cloudyoke</a></p>
 </main></body></html>
 """

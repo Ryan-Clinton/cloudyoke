@@ -430,6 +430,22 @@ only other aviation station nearby is Campbeltown (EGEC). Public infrared
 sky-temperature feeds exist (a ThingSpeak channel at a star party in Gujarat,
 India) but none near Ireland was found.
 
+### 5.3.2 Joined sites: the satellite, scored on the ground
+
+A place can join before it has a sensor (14 November 2026, [join.md](join.md)).
+Every 10 minutes `server/satellite.py` judges each joined site from Meteosat's
+10.5 µm infrared picture, with telescopeyoke's method: the site's brightness
+against the darkest tenth of a box 3.4° of latitude by 7.4° of longitude round
+it. More than 20 brighter is "cloud", under 10 "probably clear", and between is
+"thin or broken cloud". The site is judged at its 0.05° cell's centre only
+(section 6). The verdict is a reference, never a station's state: it is
+uncalibrated and the picture is kilometres across. What people at the site saw
+(`server/seen.py`: clear, partly or cloudy, from when to when, by a host's eye,
+an imager's frames or a station) scores it. The joined sites' page shows each
+site by its area's name, its verdicts and its score. A site that later gets a
+station keeps its history, so the satellite's score there becomes a check on
+the station as well.
+
 ### 5.4 The install check
 
 When a unit is first up, the site shows its first night's readings beside the

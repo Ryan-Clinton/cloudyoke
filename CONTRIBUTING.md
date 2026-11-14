@@ -4,6 +4,11 @@ The project is at the design stage: the first station's hardware is due in
 mid-November 2026, and there is no firmware or server code here yet. That
 makes this the best time to question the design.
 
+## Joining
+
+To add your area, with or without equipment: [docs/join.md](docs/join.md) and the
+[join issue form](https://github.com/Ryan-Clinton/cloudyoke/issues/new?template=join.yml).
+
 ## Where things go
 
 - **Discussions:** ideas, questions, hardware suggestions, calibration

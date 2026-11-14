@@ -1,0 +1,24 @@
+# Meteosat's verdict for every joined site (data/sites.json), then the joined sites' page
+# (ryanclinton.uk/cloudyoke/live/sites/). A new picture every 10 minutes; each run also fetches any picture of the
+# last hour not yet kept, so a missed run leaves no gap. Contains EUMETSAT data. Standard library only.
+[Unit]
+Description=cloudyoke: satellite verdicts for joined sites and their page
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cloudyoke
+Group=cloudyoke
+WorkingDirectory=/srv/cloudyoke/code
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=-/usr/bin/python3 server/satellite.py --data /srv/cloudyoke/data --hours 1
+ExecStart=/usr/bin/python3 server/sites_page.py --data /srv/cloudyoke/data --out /srv/cloudyoke/www
+MemoryMax=200M
+Nice=10
+TimeoutStartSec=5min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/cloudyoke/data /srv/cloudyoke/www
+ProtectHome=yes
+PrivateTmp=yes

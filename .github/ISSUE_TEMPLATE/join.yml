@@ -1,0 +1,48 @@
+name: Join the network
+description: Add your sky. No sensor needed to start.
+title: "Join: <your area>"
+labels: ["join"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Joining starts with a place. Your area gets Meteosat's cloud verdict every 10 minutes on
+        [the joined sites' page](https://ryanclinton.uk/cloudyoke/live/sites/), and what you see of the real sky is
+        what scores it. Equipment is optional and can come later. The steps are in [docs/join.md](https://github.com/Ryan-Clinton/cloudyoke/blob/main/docs/join.md).
+
+        **This issue is public.** Give a town or area, never an address or exact coordinates. The page shows the
+        area's name only.
+  - type: input
+    id: area
+    attributes:
+      label: Area and country
+      description: A town, village or area. This is the name the page will show.
+      placeholder: Brecon, Wales
+    validations:
+      required: true
+  - type: checkboxes
+    id: have
+    attributes:
+      label: What you have (tick any)
+      options:
+        - label: Just a view of the sky. I can say what it was doing on nights I'm out.
+        - label: A telescope or camera that images. Frames or subs with times would score the satellite.
+        - label: An existing cloud sensor (AAG CloudWatcher, Boltwood, other ASCOM ObservingConditions).
+        - label: I'd build the £15 station (Arduino Nano, MLX90614, BME280), or I already have the parts.
+  - type: textarea
+    id: kit
+    attributes:
+      label: Your kit, if any
+      description: Camera and mount, imaging software, the sensor's make, a PC or Raspberry Pi that's on overnight.
+  - type: textarea
+    id: help
+    attributes:
+      label: What would help you take part?
+      description: Parts lists, a hand with wiring, a simpler way to send reports, anything.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I've given an area, not an address or coordinates.
+          required: true

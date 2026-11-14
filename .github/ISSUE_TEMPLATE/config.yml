@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Join without a GitHub account
+    url: https://ryanclinton.uk/cloudyoke/#join
+    about: Leave an email and a general area on the project's page.
+  - name: Questions and ideas
+    url: https://github.com/Ryan-Clinton/cloudyoke/discussions
+    about: Anything that isn't a join or a specific piece of work.
