@@ -19,7 +19,7 @@ GitHub account can use the form on [the project's page](https://ryanclinton.uk/c
 Each station gets its own key, and its site goes on the
 [network's pages](https://ryanclinton.uk/cloudyoke/live/) by its area's name only, with the airports and
 ceilometers near it,
-([spec §6](spec.md#6-hosts-privacy)), with Meteosat's verdict beside it as a reference. Outside stations start
+([spec §6](spec.md#6-hosts-privacy)), with the weather satellite's verdict beside it as a reference. Outside stations start
 sending once the data licence is settled ([issue 8](https://github.com/Ryan-Clinton/cloudyoke/issues/8)), so every
 host knows what they're agreeing to before their first reading. A host can leave at any time; their site comes off
 the page and its readings are deleted on request.

@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Sites and stations (docs/spec.md 5.1 and 6), kept on the server only.
 
-    python server/registry.py add-site --data data --id brecon --area "Brecon, Wales" --lat 51.95 --lon -3.39 \\
-        [--public-cell 0.05] [--as station|existing sensor]
+    python server/registry.py add-site --data data --id brecon --place Brecon --country GB [--as existing sensor]
+    python server/registry.py add-site --data data --id x --area "Name shown" --lat .. --lon .. [--population N]
     python server/registry.py register --data data --site brecon [--setup sensor=BAA --setup mounting=wall]
     python server/registry.py setup --data data --unit cy-0002 --setup hood=printed
     python server/registry.py revoke --data data --unit cy-0002
     python server/registry.py list --data data
 
 data/sites.json holds each site: its area's name (all the public ever sees), the position it was given (never
-published, never used finer than its 0.05° cell) and the cell size its pages may show: 0.2° unless a 0.05° cell
-is safe (spec 6: a town of 1,000 or more, or 3 stations in the cell). data/stations.json holds each station:
+published, never used finer than its 0.05° cell) and its town's population, which with the other sites decides
+the cell its pages may show: 0.2° unless a 0.05° cell is safe (spec 6: a town of 1,000 or more, or 3 sites in
+the cell). A town and country are looked up with Open-Meteo's geocoder (GeoNames' data), so no country's
+postcode system is assumed. data/stations.json holds each station:
 its site, a SHA-256 of its key (the key itself is printed once, at registration, and kept nowhere), its setups
 with the date each began, and when it was revoked. The receiver re-reads stations.json whenever it changes, so
 registering or revoking needs no restart.
@@ -67,13 +69,34 @@ def _write(path, data, mode=0o640):
 
 def sites(root):
     """Every site, with "lat" and "lon" snapped to its 0.05° cell (what the server works with) and "public"
-    the centre of the cell its pages may show. The position as given stays in the file only."""
+    the centre of the cell its pages may show: the 0.05° cell only when it holds 3 sites or the site's town has
+    1,000 people or more (spec 6), else the 0.2° cell. The position as given stays in the file only."""
+    raw = _read(Path(root) / "sites.json")
+    fine = {sid: cell(s["lat"], s["lon"]) for sid, s in raw.items()}
     out = {}
-    for sid, s in _read(Path(root) / "sites.json").items():
-        size = s.get("public_cell", 0.2) if s.get("public_cell", 0.2) in PUBLIC_CELLS else 0.2
-        lat, lon = cell(s["lat"], s["lon"])
-        out[sid] = {**s, "lat": lat, "lon": lon, "public": cell(s["lat"], s["lon"], size), "public_cell": size}
+    for sid, s in raw.items():
+        crowded = sum(1 for c in fine.values() if c == fine[sid]) >= 3
+        size = 0.05 if crowded or (s.get("population") or 0) >= 1000 else 0.2
+        out[sid] = {**s, "lat": fine[sid][0], "lon": fine[sid][1], "public": cell(s["lat"], s["lon"], size), "public_cell": size}
     return out
+
+
+GEOCODER = "https://geocoding-api.open-meteo.com/v1/search"
+
+
+def look_up(place, country):
+    """A town or village's position and population from Open-Meteo's geocoder (GeoNames data): the name and a
+    two-letter country code only, never an address. Returns (lat, lon, population or None, full name)."""
+    import urllib.parse
+    import urllib.request
+    url = f"{GEOCODER}?{urllib.parse.urlencode({'name': place, 'count': 10, 'language': 'en', 'format': 'json'})}"
+    req = urllib.request.Request(url, headers={"User-Agent": "cloudyoke (github.com/Ryan-Clinton/cloudyoke)"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        found = [p for p in json.loads(r.read()).get("results") or [] if p.get("country_code") == country.upper()]
+    if not found:
+        raise ValueError(f"no place called {place!r} in {country.upper()}")
+    p = max(found, key=lambda p: p.get("population") or 0)       # the biggest of that name: towns before townlands
+    return p["latitude"], p["longitude"], p.get("population"), ", ".join(x for x in (p["name"], p.get("admin1"), p.get("country")) if x)
 
 
 def stations(root):
@@ -86,18 +109,16 @@ def site_of(root, unit):
     return sites(root).get(st["site"]) if st else None
 
 
-def add_site(root, sid, area, lat, lon, public_cell=0.2, kind="station"):
+def add_site(root, sid, area, lat, lon, population=None, kind="station"):
     if not ID.match(sid):
         raise ValueError("a site id is 2 to 40 lower-case letters, digits and hyphens")
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         raise ValueError("that isn't a position on Earth")
-    if public_cell not in PUBLIC_CELLS:
-        raise ValueError(f"the public cell is one of {PUBLIC_CELLS}")
     path = Path(root) / "sites.json"
     data = _read(path)
     if sid in data:
         raise ValueError(f"site {sid} already exists")
-    data[sid] = {"area": area, "lat": lat, "lon": lon, "public_cell": public_cell, "as": kind, "joined": now_text()[:10]}
+    data[sid] = {"area": area, "lat": lat, "lon": lon, "population": population, "as": kind, "joined": now_text()[:10]}
     _write(path, data)
     return data[sid]
 
@@ -210,10 +231,12 @@ def main():
         p.add_argument("--data", default="data")
         if name == "add-site":
             p.add_argument("--id", required=True)
-            p.add_argument("--area", required=True, help="the name the pages show, e.g. \"Brecon, Wales\"")
-            p.add_argument("--lat", type=float, required=True)
-            p.add_argument("--lon", type=float, required=True)
-            p.add_argument("--public-cell", type=float, default=0.2, choices=PUBLIC_CELLS)
+            p.add_argument("--place", help="the town or village, looked up with --country (position and population)")
+            p.add_argument("--country", help="two-letter country code, e.g. GB, IE, US")
+            p.add_argument("--area", help="the name the pages show; default the place's own, e.g. \"Brecon, Wales\"")
+            p.add_argument("--lat", type=float, help="instead of --place")
+            p.add_argument("--lon", type=float)
+            p.add_argument("--population", type=int, help="the town's, if not looked up")
             p.add_argument("--as", dest="kind", default="station", choices=("station", "existing sensor"))
         if name == "register":
             p.add_argument("--site", required=True)
@@ -224,8 +247,18 @@ def main():
     a = ap.parse_args()
     try:
         if a.cmd == "add-site":
-            add_site(a.data, a.id, a.area, a.lat, a.lon, a.public_cell, a.kind)
-            print(f"registry: site {a.id} added")
+            lat, lon, population, area = a.lat, a.lon, a.population, a.area
+            if a.place:
+                if not a.country:
+                    raise ValueError("--place needs --country")
+                lat, lon, found_pop, full = look_up(a.place, a.country)
+                population, area = population if population is not None else found_pop, area or full
+            if lat is None or lon is None or not area:
+                raise ValueError("give --place and --country, or --lat, --lon and --area")
+            add_site(a.data, a.id, area, lat, lon, population, a.kind)
+            s = sites(a.data)[a.id]
+            print(f"registry: site {a.id} added: {area}, population {population or 'unknown'}, pages show its "
+                  f"{s['public_cell']}° cell")
         elif a.cmd == "register":
             unit, key = register(a.data, a.site, a.setup)
             print(f"registry: {unit} at {a.site}\nkey (shown once, give it to the host): {key}")

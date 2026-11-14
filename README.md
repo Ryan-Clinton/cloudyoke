@@ -16,8 +16,8 @@ Public page: https://ryanclinton.uk/cloudyoke/
 Antrim, Northern Ireland. The Nano-over-USB station's firmware is written
 ([firmware/nano-usb](firmware/nano-usb/README.md)); the ESP32's isn't. The
 server keeps references for every site, found by distance: each airport within
-150 km, Met Éireann's ceilometers in Ireland, and Meteosat's infrared verdict
-overhead every 10 minutes ([live](https://ryanclinton.uk/cloudyoke/live/)).
+150 km, Met Éireann's ceilometers in Ireland, and an infrared verdict from the
+weather satellite overhead (Meteosat, GOES or Himawari) every 10 minutes ([live](https://ryanclinton.uk/cloudyoke/live/)).
 Next milestone:
 [first observational data](https://github.com/Ryan-Clinton/cloudyoke/milestone/1).
 
@@ -96,7 +96,9 @@ Each stage has a gate it must pass before the next ([spec §9](docs/spec.md#9-st
    test (open under a hood, behind thin polythene, or with a heater).
 2. **Two in one town.** Neighbours agree on at least 90% of judged readings
    over four weeks. The data licence is settled before this station sends.
-3. **A line upwind:** the north-west coast, near Derry, mid Ulster. Arrival
+3. **A line upwind,** on the first station's usual nights (the north-west
+   coast, near Derry, mid Ulster), and hosts anywhere who build one: nothing in
+   the code is tied to one place ([spec §9](docs/spec.md#9-stages)). Arrival
    warnings are shown only after a season's test (spec §9.1).
 4. **Open to anyone:** build guide, one-click web installer, parts lists by
    country, once the hardware and self-calibration have passed on at least

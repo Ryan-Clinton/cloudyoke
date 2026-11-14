@@ -19,7 +19,7 @@ NOW = datetime(2026, 11, 14, 22, 5, tzinfo=timezone.utc)
 
 def png(rows, colour=0, palette=None, filt=0):
     """A small 8-bit PNG; every row uses filter `filt` (only 0 and 1 are encoded here)."""
-    channels = {0: 1, 2: 3, 3: 1}[colour]
+    channels = {0: 1, 2: 3, 3: 1, 6: 4}[colour]
     raw = b""
     for row in rows:
         flat = bytes(row)
@@ -73,8 +73,48 @@ class JudgeTest(unittest.TestCase):
         self.assertEqual((here, clear), (90, 50))
 
 
-def fake_look(lat, lon, when):
-    return {"obs_time": when.strftime("%Y-%m-%dT%H:%M:%SZ"), "here": 80.0, "clear": 50.0, "margin": 30.0, "verdict": "cloud"}
+class WorldTest(unittest.TestCase):
+    def test_each_place_gets_the_satellite_most_nearly_overhead(self):
+        self.assertEqual(satellite.choose(55.07, -6.51), "meteosat")
+        self.assertEqual(satellite.choose(39.74, -104.99), "goes-east")
+        self.assertEqual(satellite.choose(21.3, -157.8), "goes-west")
+        self.assertEqual(satellite.choose(-33.87, 151.21), "himawari")
+        self.assertIsNone(satellite.choose(64.1, -21.9), "Reykjavik is too slanted a view for any of them")
+        self.assertIsNone(satellite.choose(78.2, 15.6), "Svalbard")
+
+    def test_boxes_stay_on_the_map(self):
+        self.assertEqual(satellite.box(-17.7, 178.5)[1:4:2], (172.6, 180))
+
+    def test_overcast_box_no_longer_reads_clear(self):
+        """The whole box under cloud: its warmest tenth is cloud too, so the site's own clear history decides."""
+        t0 = datetime(2026, 11, 1, 22, 0, tzinfo=timezone.utc)
+        history = [(t0 + timedelta(days=d, minutes=m), {"here": 60.0 + m / 10, "satellite": "meteosat"})
+                   for d in range(7) for m in (-60, -30, 0, 30, 60)]
+        when = datetime(2026, 11, 8, 21, 50, tzinfo=timezone.utc)
+        own = satellite.own_clear(history, when, "meteosat")
+        self.assertIsNotNone(own)
+        with mock.patch.object(satellite, "measure", return_value=(110.0, 105.0)):
+            row = satellite.look("meteosat", 55.075, -6.525, when, history)
+        self.assertEqual(row["verdict"], "cloud", "against the box alone (margin 5) it would say probably clear")
+        with mock.patch.object(satellite, "measure", return_value=(110.0, 105.0)):
+            self.assertEqual(satellite.look("meteosat", 55.075, -6.525, when, history[:5])["verdict"], "probably clear",
+                             "too little history: the box alone, as before")
+
+    def test_own_history_ignores_other_hours_and_satellites(self):
+        when = datetime(2026, 11, 8, 22, 0, tzinfo=timezone.utc)
+        noon = [(when - timedelta(days=d, hours=10), {"here": 1.0, "satellite": "meteosat"}) for d in range(1, 7) for _ in range(5)]
+        other = [(when - timedelta(days=d), {"here": 1.0, "satellite": "goes-east"}) for d in range(1, 7) for _ in range(5)]
+        self.assertIsNone(satellite.own_clear(noon + other, when, "meteosat"))
+
+    def test_gibs_colours_read_as_celsius_with_blends_taken_to_the_nearest(self):
+        colours = {(255, 255, 255): -90.0, (0, 0, 0): 30.0, (128, 128, 128): -5.0}
+        data = png([[255, 255, 255, 255, 0, 0, 0, 255, 126, 129, 127, 255, 9, 9, 9, 0]], colour=6)
+        self.assertEqual(satellite.png_celsius(data, colours)[2], [[-90.0, 30.0, -5.0, None]])
+
+
+def fake_look(sat, lat, lon, when, history=()):
+    return {"obs_time": when.strftime("%Y-%m-%dT%H:%M:%SZ"), "satellite": sat, "units": "levels", "here": 80.0,
+            "clear": 50.0, "margin": 30.0, "verdict": "cloud"}
 
 
 class CollectTest(unittest.TestCase):
@@ -89,7 +129,7 @@ class CollectTest(unittest.TestCase):
 
     def test_keeps_each_picture_once_and_judges_at_the_cell(self):
         seen_at = []
-        look = lambda lat, lon, when: seen_at.append((lat, lon)) or fake_look(lat, lon, when)
+        look = lambda sat, lat, lon, when, history=(): seen_at.append((lat, lon)) or fake_look(sat, lat, lon, when)
         with mock.patch.object(satellite, "picture_time", return_value=NOW - timedelta(minutes=25)), \
                 mock.patch.object(satellite, "look", side_effect=look):
             satellite.collect(self.root, hours=0.5, now=NOW)

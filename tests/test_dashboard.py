@@ -29,7 +29,7 @@ class DashboardTest(unittest.TestCase):
 
     def test_each_site_gets_the_sources_near_it_and_stale_ones_are_flagged(self):
         with tempfile.TemporaryDirectory() as d:
-            registry.add_site(d, "home", "Ballymoney, County Antrim", 55.0712, -6.5143, public_cell=0.05)
+            registry.add_site(d, "home", "Ballymoney, County Antrim", 55.0712, -6.5143, population=9625)
             registry.add_site(d, "far", "Brecon, Wales", 51.95, -3.39)
             registry.note_references(d, {
                 "EGAA": {"kind": "metar", "name": "Belfast International Airport", "lat": 54.654, "lon": -6.225},

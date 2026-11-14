@@ -18,7 +18,7 @@ class RegistryTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
         self.root = self.dir.name
-        registry.add_site(self.root, "home", "Ballymoney, County Antrim", 55.0712, -6.5143, public_cell=0.05)
+        registry.add_site(self.root, "home", "Ballymoney, County Antrim", 55.0712, -6.5143, population=9625)
 
     def tearDown(self):
         self.dir.cleanup()
@@ -58,6 +58,9 @@ class RegistryTest(unittest.TestCase):
         self.assertEqual((s["home"]["lat"], s["home"]["lon"]), (55.075, -6.525))
         self.assertEqual(s["home"]["public"], (55.075, -6.525))
         self.assertEqual(s["village"]["public"], (54.1, -7.5), "0.2° unless a smaller cell is safe")
+        registry.add_site(self.root, "v2", "Somewhere small", 54.1249, -7.4301)
+        registry.add_site(self.root, "v3", "Somewhere small", 54.1201, -7.4349)
+        self.assertEqual(registry.sites(self.root)["village"]["public_cell"], 0.05, "three sites in one 0.05° cell")
         with self.assertRaises(ValueError):
             registry.add_site(self.root, "home", "again", 1, 1)
         with self.assertRaises(ValueError):

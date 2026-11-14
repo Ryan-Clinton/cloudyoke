@@ -68,9 +68,11 @@ class ReceiverTest(unittest.TestCase):
     def test_duplicates_survive_a_restart(self):
         self.post(self.reading(1))
         self.stored()
+        day = self.reading(1)["t"][:10]
         fresh = receiver.Store(self.data)
-        self.assertFalse(fresh.claim("cy-0001", 1, 1))
-        self.assertTrue(fresh.claim("cy-0001", 1, 2))
+        self.assertFalse(fresh.claim("cy-0001", day, 1, 1))
+        self.assertTrue(fresh.claim("cy-0001", day, 1, 2))
+        self.assertTrue(all(k[1] == day for k in fresh.seen), "only the reading's own day is loaded")
 
     def test_wrong_or_missing_key(self):
         self.assertEqual(self.post(self.reading(1), key="nope")[0], 401)
@@ -101,7 +103,8 @@ class ReceiverTest(unittest.TestCase):
         store.queue.put({"placeholder": True})      # full, and nothing is draining this one
         try:
             self.assertEqual(self.post(self.reading(1))[0], 503)
-            self.assertTrue(store.claim("cy-0001", 1, 1), "a refused reading must be accepted when resent")
+            self.assertTrue(store.claim("cy-0001", self.reading(1)["t"][:10], 1, 1),
+                            "a refused reading must be accepted when resent")
         finally:
             store.queue = original
 

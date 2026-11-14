@@ -19,7 +19,7 @@ import logging
 import os
 import queue
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -27,6 +27,7 @@ MAX_BODY = 256 * 1024                 # a WiFi drop's worth of buffered readings
 MAX_READINGS = 400
 QUEUE_SIZE = 10_000
 WRITE_WAIT = 10                       # seconds a send waits for its readings to reach disk before answering
+KEEP_DAYS = 3                         # days of duplicate checks kept in memory; older days are read from disk when needed
 
 log = logging.getLogger("receiver")
 
@@ -64,14 +65,18 @@ class Store:
 
     def __init__(self, root):
         self.root = Path(root)
-        self.seen = {}                # unit -> set of (boot, seq), loaded from disk the first time a unit sends
+        # (unit, UTC day) -> set of (boot, seq). A resent reading carries its original time, so it always lands in
+        # the same day's file as the first copy: only that day is checked, loaded from disk when first needed and
+        # dropped from memory a few days later, so memory stays flat however long stations run
+        self.seen = {}
         self.lock = threading.Lock()
         self.queue = queue.Queue(QUEUE_SIZE)
         threading.Thread(target=self._writer, daemon=True).start()
 
-    def _load(self, unit):
+    def _load(self, unit, day):
         keys = set()
-        for path in (self.root / unit).glob("*.jsonl"):
+        path = self.root / unit / f"{day}.jsonl"
+        if path.exists():
             for line in path.read_text(encoding="utf-8").splitlines():
                 try:
                     r = json.loads(line)
@@ -80,19 +85,25 @@ class Store:
                     continue          # a torn last line after a crash is skipped, never fatal
         return keys
 
-    def claim(self, unit, boot, seq):
+    def _forget_old(self):
+        oldest = (datetime.now(timezone.utc) - timedelta(days=KEEP_DAYS)).strftime("%Y-%m-%d")
+        for key in [k for k in self.seen if k[1] < oldest]:
+            del self.seen[key]
+
+    def claim(self, unit, day, boot, seq):
         """True if this reading is new (and marks it taken), False if it was stored before."""
         with self.lock:
-            if unit not in self.seen:
-                self.seen[unit] = self._load(unit)
-            if (boot, seq) in self.seen[unit]:
+            if (unit, day) not in self.seen:
+                self._forget_old()
+                self.seen[(unit, day)] = self._load(unit, day)
+            if (boot, seq) in self.seen[(unit, day)]:
                 return False
-            self.seen[unit].add((boot, seq))
+            self.seen[(unit, day)].add((boot, seq))
             return True
 
-    def release(self, unit, boot, seq):
+    def release(self, unit, day, boot, seq):
         with self.lock:
-            self.seen.get(unit, set()).discard((boot, seq))
+            self.seen.get((unit, day), set()).discard((boot, seq))
 
     def _writer(self):
         # Never dies: a failed write is logged, its claim released (so the station's resend is taken), and the
@@ -111,7 +122,7 @@ class Store:
                 item.ok = True
             except Exception:
                 log.exception("couldn't store a reading from %s; it will be taken when resent", item.unit)
-                self.release(item.unit, item.boot, item.seq)
+                self.release(item.unit, item.day, item.boot, item.seq)
                 item.ok = False
             finally:
                 item.done.set()
@@ -184,14 +195,14 @@ class Handler(BaseHTTPRequestHandler):
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         items = []
         for r in readings:
-            if not self.store.claim(unit, r["boot"], r["seq"]):
+            item = Item(unit, r, now)
+            if not self.store.claim(unit, item.day, r["boot"], r["seq"]):
                 duplicates += 1
                 continue
-            item = Item(unit, r, now)
             try:
                 self.store.queue.put_nowait(item)
             except queue.Full:
-                self.store.release(unit, r["boot"], r["seq"])
+                self.store.release(unit, item.day, r["boot"], r["seq"])
                 log.warning("queue full: asked %s to resend", unit)
                 break
             items.append(item)

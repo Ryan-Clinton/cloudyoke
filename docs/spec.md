@@ -15,10 +15,12 @@ A small box on a wall or shed looks straight up all night and measures the sky's
 temperature in infrared. A clear sky reads far colder than the air; cloud reads
 close to the air's temperature. One box tells its owner whether their own sky is
 clear right now, measured rather than forecast. Many boxes, sending a reading a
-minute to ryanclinton.uk, make a live map of where it is clear. Because most of
-our weather arrives from the west and south-west, boxes 30 to 80 km upwind
-might show cloud coming before it gets here: that is the ambition, and it is
-unproven.
+minute to ryanclinton.uk, make a live map of where it is clear, anywhere in the
+world. Because cloud moves with the wind, boxes 30 to 80 km upwind might show
+cloud coming before it reaches the next: that is the ambition, and it is
+unproven. Upwind is that night's, from the wind at cloud height (section 9.1),
+never a fixed direction. Over Ireland it is most often west or south-west;
+elsewhere it is whatever the weather does there.
 
 ### 1.1 Three different claims
 
@@ -448,17 +450,30 @@ India) but none near Ireland was found.
 ### 5.3.2 Reference sources: the satellite at each joined site
 
 A site joins with a sensor ([join.md](join.md)).
-Every 10 minutes `server/satellite.py` judges each joined site from Meteosat's
-10.5 µm infrared picture, with telescopeyoke's method: the site's brightness
-against the darkest tenth of a box 3.4° of latitude by 7.4° of longitude round
-it. More than 20 brighter is "cloud", under 10 "probably clear", and between is
-"thin or broken cloud". The site is judged at its 0.05° cell's centre only
-(section 6). The verdict is a reference, never a station's state: it is
-uncalibrated and the picture is kilometres across. The site's sensor is what
-it is compared against. The joined sites' page shows each site by its area's
-name with the satellite's verdicts. `server/seen.py` keeps spans of known sky
-(a station's judged state, for now entered by hand) and scores the satellite
-against them.
+Every 10 minutes `server/satellite.py` judges each site from the 10.5 µm
+infrared picture of the geostationary satellite most nearly overhead: Meteosat
+(EUMETSAT's map service, grey levels), or GOES-East, GOES-West or Himawari
+(NASA GIBS, in °C). Past 66° from the point under every satellite (Iceland,
+the Arctic, Antarctica) there is no verdict, said as that. The method is
+telescopeyoke's: the site's 6 km patch against a clear-sky stand-in. More
+than 20 levels (8 °C) colder is "cloud", under 10 (4 °C) "probably clear", and
+between is "thin or broken cloud".
+
+The stand-in is the warmer of two: the warmest tenth of a box 3.4° of
+latitude by 7.4° of longitude round the site, and the warmest tenth of the
+site's own patch at the same time of day (within 90 minutes) over the last 7
+days, once there are 20 such pictures. With the box alone, a site under an
+overcast as wide as the box compared itself with cloud and read "probably
+clear" (found in the audit of 14 November 2026). Meteosat's grey has no
+published temperature scale. Against GOES-East over the Atlantic on 14
+November it came to roughly 0.4 °C a level, scattered by the two satellites'
+different views of the same cloud, so its thresholds stay in levels.
+
+The site is judged at its 0.05° cell's centre only (section 6). The verdict is
+a reference, never a station's state: it is uncalibrated and the picture is
+kilometres across. The site's sensor is what it is compared against.
+`server/seen.py` keeps spans of known sky (a station's judged state, for now
+entered by hand) and scores the satellite against them.
 
 ### 5.4 The install check
 
@@ -486,14 +501,17 @@ edge or branch inside the cone, puts the unit in "fault: check the view".
 
 ## 6. Hosts' privacy
 
-- A host gives a town or village and a postcode district, never an address.
-- The server keeps the position the host gave privately, and publishes only a
-  cell: the 0.05° square it falls in (about 5 km by 3 km here), which is still
-  fine for warnings at 30 to 80 km. In a small village with one unit a 0.05°
-  cell can still point at a house, so a cell is published only when it holds
-  at least 3 units, or covers a town of at least 1,000 people; otherwise the
-  unit is shown at the 0.2° cell (about 20 km by 13 km) or just by its area's
-  name. Others do similar: RIPE Atlas rounds to about 1 km, Raspberry Shake
+- A host gives a town or village and its country, never an address. The server
+  looks up the place's position and population (`registry.py add-site --place
+  --country`, Open-Meteo's geocoder over GeoNames' data), so no country's
+  postcode system is assumed.
+- The server keeps the position privately, and publishes only a cell: the 0.05°
+  square it falls in (about 3 km by 5.5 km at 55° N, wider towards the
+  equator), which is still fine for warnings at 30 to 80 km. In a small village
+  with one unit a 0.05° cell can still point at a house, so a cell is published
+  only when it holds at least 3 sites, or the town has at least 1,000 people;
+  otherwise the site is shown at the 0.2° cell, or just by its area's name.
+  The registry applies this rule itself (14 November 2026). Others do similar: RIPE Atlas rounds to about 1 km, Raspberry Shake
   moves each station up to a mile at random, Tempest blurs locations for the
   public.
 - The CSV, the map and the page's code all use the published cell only; the
@@ -522,11 +540,20 @@ come here instead.
 | 0 | Proposal page and sign-up | the idea, the cost, a form | none: it can go up now |
 | 1 | Ryan's first fixed unit, in Ballymoney | its readings, its state, and the reference checks | stage 1's pass (9.2) |
 | 2 | A friend's unit in the same town | two sensors close together should agree; a disagreement is a fault (dew, power, a bird) | the licence decided (5.5); the two agree on at least 90% of judged readings over 4 weeks |
-| 3 | Upwind hosts: the north-west coast, near City of Derry Airport, mid Ulster | each box's state, and how changes at one line up with the next in time | none for showing states; arrival warnings only after 9.1 |
+| 3 | Hosts upwind of the first on its usual nights (for Ballymoney: the north-west coast, near City of Derry Airport, mid Ulster), and hosts anywhere else who build one | each box's state, and how changes at one line up with the next in time | none for showing states; arrival warnings only after 9.1 |
 | 4 | Open doors: build guide, web installer (ESP Web Tools: plug in, click Install, give the WiFi over the same cable), parts lists by country | anyone can add a unit | the hardware and self-calibration have passed on at least 3 units in different places, and the load test (5.3) is done |
-| 5 | Regions run themselves: a group (a society, a county) looks after its own hosts, the server stays one | the map past Ireland | an aspiration, not a plan |
+| 5 | Regions run themselves: a group (a society, a county, a country) looks after its own hosts, the server stays one | the map wherever there are hosts | people willing to run a region |
 
 The page at stage 0 promises only stage 1. Stages 2 to 5 are "what I hope".
+
+**Nothing in the code is tied to one place** (14 November 2026). A site anywhere
+gets its own airports (every one within 150 km), its own night (centred on its
+solar midnight), the geostationary satellite most nearly overhead (Meteosat,
+GOES-East, GOES-West or Himawari; none past 66° from the point under it, so
+nothing for the far north and south), and its public cell by its town's
+population. National ceilometer networks are the exception: each country's is a
+collector of its own, Ireland's first. Growth beyond Ireland is therefore a
+matter of hosts, prices and parts lists by country (stage 4), not of rebuilding.
 
 **A second track, alongside stages 1 to 3: existing sensors (section 3.1).**
 

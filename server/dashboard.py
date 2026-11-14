@@ -180,11 +180,12 @@ def timeline(root, now, srcs, sat_rows=None):
     i = 0
     if sat_rows is not None:
         y = TOP
-        out.append(f'<text x="{LEFT - 8}" y="{y + 17}" text-anchor="end" class="row">Meteosat <tspan class="tick">overhead</tspan></text>')
+        name = satellite.SATELLITES[sat_rows[-1][1].get("satellite", "meteosat")]["name"] if sat_rows else "Satellite"
+        out.append(f'<text x="{LEFT - 8}" y="{y + 17}" text-anchor="end" class="row">{E(name)} <tspan class="tick">overhead</tspan></text>')
         for t, r in sat_rows:
             x1, x2 = x(t), x(t + timedelta(minutes=satellite.STEP_MIN))
             out.append(f'<rect x="{x1:.1f}" y="{y + 4}" width="{x2 - x1:.1f}" height="{ROW - 10}" fill="{VERDICT_SHADE.get(r["verdict"], "#fff")}">'
-                       f'<title>{t:%H:%M} UTC: {E(r["verdict"])} (margin {r["margin"]})</title></rect>')
+                       f'<title>{t:%H:%M} UTC: {E(r["verdict"])} (margin {r["margin"]} {E(r.get("units", "levels"))})</title></rect>')
         if not sat_rows:
             out.append(f'<text x="{LEFT + 6}" y="{y + 17}" class="tick">no satellite verdicts in the last 24 hours</text>')
         i = 1
@@ -221,7 +222,7 @@ def page(title, description, body):
 <style>{STYLE}</style></head><body><main>
 {body}
 <p class="key">Sources: airport reports from the Aviation Weather Center (aviationweather.gov). Contains Met Éireann data,
-CC BY 4.0. Contains EUMETSAT data, © EUMETSAT. Code and method:
+CC BY 4.0. Contains EUMETSAT data, © EUMETSAT. GOES and Himawari imagery from NASA GIBS (NOAA, JMA). Code and method:
 <a href="https://github.com/Ryan-Clinton/cloudyoke">github.com/Ryan-Clinton/cloudyoke</a> ·
 <a href="/cloudyoke/">about cloudyoke</a></p>
 </main></body></html>
@@ -247,9 +248,12 @@ def site_status(root, sid, site, now):
     sat_rows = load(root, sid, now - timedelta(hours=24), folder="satellite")
     t, r = sat_rows[-1] if sat_rows else (None, None)
     minutes = (now - t).total_seconds() / 60 if t else None
-    sat = {"latest": r["obs_time"] if r else None, "verdict": r["verdict"] if r else None,
-           "margin": r["margin"] if r else None, "age_minutes": round(minutes) if minutes is not None else None,
-           "stale": minutes is None or minutes > satellite.STALE_MIN}
+    key = r.get("satellite", "meteosat") if r else satellite.choose(site["lat"], site["lon"])
+    spec = satellite.SATELLITES.get(key) if key else None
+    sat = {"satellite": spec["name"] if spec else None, "latest": r["obs_time"] if r else None,
+           "verdict": r["verdict"] if r else None, "margin": r["margin"] if r else None,
+           "units": r.get("units", "levels") if r else None, "age_minutes": round(minutes) if minutes is not None else None,
+           "stale": minutes is None or minutes > (spec["stale_min"] if spec else 0)}
     return found, srcs, rows, sat_rows, sat
 
 
@@ -257,13 +261,17 @@ def site_page(root, sid, site, now):
     found, srcs, rows, sat_rows, sat = site_status(root, sid, site, now)
     sc = seen.score(root, sid)
     if sat["verdict"]:
-        sat_html = (f'<p class="verdict">{E(sat["verdict"])}</p><p class="key">Meteosat&rsquo;s 10.5 µm picture of '
-                    f'{sat["latest"][11:16]} UTC, {sat["age_minutes"]} min ago{" · stale" if sat["stale"] else ""}; margin '
-                    f'{sat["margin"]} (over 20 is cloud, under 10 probably clear). A rough, uncalibrated reference: the '
-                    f'site&rsquo;s brightness against the darkest tenth of the 400 km round it.'
+        spec = next(s for s in satellite.SATELLITES.values() if s["name"] == sat["satellite"])
+        sat_html = (f'<p class="verdict">{E(sat["verdict"])}</p><p class="key">{E(sat["satellite"])}&rsquo;s infrared picture of '
+                    f'{sat["latest"][11:16]} UTC, {sat["age_minutes"]} min ago{" · stale" if sat["stale"] else ""}; the site '
+                    f'{sat["margin"]} {E(sat["units"])} colder than clear sky (over {spec["cloud_above"]} is cloud, under '
+                    f'{spec["clear_below"]} probably clear). A rough, uncalibrated reference: clear sky is the warmer of the '
+                    f'400 km round the site and the site&rsquo;s own clearest at this time of day over the past week.'
                     + (f" Scored against the site&rsquo;s sensor: agreed {sc['agree']} of {sc['n']}." if sc["n"] else "") + "</p>")
+    elif sat["satellite"] is None:
+        sat_html = '<p class="key">No geostationary satellite sees this site well enough for a verdict.</p>'
     else:
-        sat_html = '<p class="key">No satellite verdict yet (Meteosat sees Europe and Africa only).</p>'
+        sat_html = f'<p class="key">No verdict from {E(sat["satellite"])} yet.</p>'
     table = (f'<div class="wrap"><table><thead><tr><th>Source</th><th>Distance</th><th>Latest (UTC)</th><th>As reported</th>'
              f'</tr></thead><tbody>{"".join(rows)}</tbody></table></div>' if rows
              else '<p>No airports or ceilometers found nearby yet: they appear after the next collection.</p>')
