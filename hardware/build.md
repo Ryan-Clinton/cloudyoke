@@ -60,7 +60,7 @@ needs an injector or a PoE switch at the router end (not priced yet).
 | Version | Parts | Price |
 |---|---|---|
 | Charger | 1 A USB charger and a USB cable long enough to reach | Charger from a drawer, or Amazon [£2.75 each in a 4-pack](https://www.amazon.co.uk/dp/B0HKTDQQ2M); 5 m micro-USB cable [£6.99](https://www.amazon.co.uk/dp/B0D4Q2X94J) (not outdoor-rated: run it through a gland, keep the plug end indoors) |
-| Solar | 6 V solar panel, CN3791 solar charger (6 V version), 18650 cell and holder | Panel [£1.70](https://www.aliexpress.com/item/1005008240317081.html) (use two: these 80 mm panels give about 70 mA in full sun, about 0.4 W, whatever the title says); charger [£2.00](https://www.aliexpress.com/item/1005008909011290.html); holder [£0.90](https://www.aliexpress.com/item/32825161070.html); cell: Vapcell K30 3000 mAh, [£9 each in a 2-pack](https://www.amazon.co.uk/s?k=Samsung+30Q+18650) on Amazon (buy branded cells from a named seller: cheap 18650s often hold a fraction of their label) |
+| Solar | 6 V solar panel, CN3791 solar charger (6 V version), 18650 cell and holder, JST PH 2.0 2-pin lead into the board's battery socket | JST PH 2.0 leads [£0.85 for 5 pairs](https://www.aliexpress.com/item/1005009153139559.html) (check red lands on the + marked by the socket: cheap leads are often reversed, and reversed polarity destroys the board; or solder the holder's wires to the board's battery pads instead); panel [£1.70](https://www.aliexpress.com/item/1005008240317081.html) (use two: these 80 mm panels give about 70 mA in full sun, about 0.4 W, whatever the title says); charger [£2.00](https://www.aliexpress.com/item/1005008909011290.html); holder [£0.90](https://www.aliexpress.com/item/32825161070.html); cell: Vapcell K30 3000 mAh, [£9 each in a 2-pack](https://www.amazon.co.uk/s?k=Samsung+30Q+18650) on Amazon (buy branded cells from a named seller: cheap 18650s often hold a fraction of their label) |
 | PoE | A PoE injector, or a PoE switch, at the router end | Not priced yet |
 | 4G | A UK data SIM for IoT (a few MB a day) | Not priced yet |
 
@@ -105,7 +105,9 @@ cables. The BME280 board has two ports, so it sits in the middle.
 **FireBeetle 2 ESP32-E** (solar): SDA and SCL as the DevKit (GPIO 21 and 22). The sensors' power comes from a spare
 GPIO pin, not 3V3, so they are switched off while the board sleeps; the pin is fixed with the firmware (issue 3).
 Battery: 18650 holder to the CN3791's BAT terminals, panel (or two in parallel) to its solar input, and the CN3791's
-battery output to the FireBeetle's battery connector (a JST PH 2.0 plug).
+battery output to the FireBeetle's battery connector (a JST PH 2.0 plug). The LOLIN D32 has the same JST PH 2.0
+socket and its own USB battery charger: without panels, the holder plugs straight into the board and the cell
+charges in place from a phone charger on the board's USB socket.
 
 **Olimex ESP32-POE** (wired): the sensors go on its UEXT connector (pin 1 3.3 V, pin 2 GND, pin 5 SCL, pin 6 SDA;
 check against Olimex's schematic). The Ethernet cable from a PoE injector or switch powers it.
