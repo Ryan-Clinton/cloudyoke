@@ -65,6 +65,22 @@ def number(v):
     return v
 
 
+def sky_status(layers, first_cover, lowest_base):
+    """What a reading with or without layers means, from the service's own definitions (checked 22 Nov 2026):
+
+    layers             at least one layer reported
+    none_detected      the first layer's cover is 0 oktas and no cloud base: working, and saw none straight up.
+                       Not "clear": it sees one point overhead, and can miss thin or very high cloud
+    hit_without_layer  0 oktas but a cloud base at this moment: a passing cloud too brief to make a layer
+    no_data            -99, -1 (missing or standby), 99 (not enough data since start-up), or absent
+    """
+    if layers:
+        return "layers"
+    if first_cover != 0:
+        return "no_data"
+    return "none_detected" if lowest_base is None else "hit_without_layer"
+
+
 def decode(station, coverage):
     """CoverageJSON point series -> one observation per reading, layers kept as reported."""
     times = coverage["domain"]["axes"]["t"]["values"]
@@ -89,6 +105,7 @@ def decode(station, coverage):
             "obs_time": when.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "lowest_base_ft": get("cloud_base_height_lowest", i),
             "layers": layers,
+            "sky_status": sky_status(layers, get("cloud_layer_cover_1", i), get("cloud_base_height_lowest", i)),
             "attribution": ATTRIBUTION,
         })
     return out

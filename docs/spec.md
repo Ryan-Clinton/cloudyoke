@@ -437,7 +437,11 @@ minutes, every 15-second reading kept. Each fetch reaches back to the newest
 reading already stored, up to 26 hours: on 10 to 11 November the feed published
 nothing after 14:30 for almost a day, then the whole backlog at once, and a
 fixed 3-hour window missed it (recovered by hand; `docs/nights/2026-11-10.md`
-compares that night's sources with a telescope's view). Like the airports' ceilometers it
+compares that night's sources with a telescope's view). Since 22 November 2026
+each reading has a `sky_status`, because an empty list of layers can mean several
+things: `layers`, `none_detected` (0 oktas, no cloud base), `hit_without_layer`
+(0 oktas, but a base at that moment) or `no_data` (missing, standby or just
+started). Like the airports' ceilometers it
 sees only straight up, so nothing it reports is turned into "clear". Other
 countries' ceilometer networks (DWD, KNMI, the Met Office) would each be a
 collector of their own, found by distance the same way.

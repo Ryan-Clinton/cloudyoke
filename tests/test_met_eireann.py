@@ -33,6 +33,14 @@ class MetEireannTest(unittest.TestCase):
         self.assertEqual(obs[2]["layers"], [{"base_ft": 200.0, "oktas": 9.0, "vertical_visibility": True}], "9 is vertical visibility")
         self.assertIn("Met Éireann", obs[0]["attribution"])
 
+    def test_sky_status_separates_no_cloud_from_no_data(self):
+        status = lambda base, height, cover: met_eireann.decode(17, coverage(TIMES[:1], [base], [height], [cover]))[0]["sky_status"]
+        self.assertEqual(status(5700.0, 57.0, 7.0), "layers")
+        self.assertEqual(status(-99.0, -99.0, 0.0), "none_detected")
+        self.assertEqual(status(3080.0, -99.0, 0.0), "hit_without_layer", "a real reading of a passing cloud")
+        for missing in (-1.0, 99.0, -99.0):
+            self.assertEqual(status(-99.0, -99.0, missing), "no_data")
+
     def test_number(self):
         for bad in (-99, -99.0, None, True, float("nan"), float("inf"), "x"):
             self.assertIsNone(met_eireann.number(bad))
