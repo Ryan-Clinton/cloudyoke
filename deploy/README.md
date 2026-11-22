@@ -7,6 +7,7 @@ this repository) and `/srv/cloudyoke/data`.
 |---|---|
 | `cloudyoke-metar.service` + `.timer` | Every 30 minutes: every airport in the collection box and within 150 km of each site (`server/metar.py --box ... --sites`), then all of Met Éireann's ceilometers (`server/met_eireann.py --all`), then every site's page in `/srv/cloudyoke/www` (`server/dashboard.py`), served at ryanclinton.uk/cloudyoke/live/ by the site's nginx |
 | `cloudyoke-satellite.service` + `.timer` | Every 10 minutes, the verdict of the satellite overhead for each site (`server/satellite.py`), then the pages again |
+| `cloudyoke-housekeep.service` + `.timer` | Once a day: gzips ceilometer files over 14 days old and deletes reference and satellite files over 400 days old (`server/housekeep.py`). Never touches station readings |
 
 Sites come from the registry (`server/registry.py`, files in `/srv/cloudyoke/data`), and each site's page shows
 the airports and ceilometers found by distance. Collection is wider than the sites: every airport reporting in
@@ -23,8 +24,8 @@ Set up once, as root:
 useradd --system --home /srv/cloudyoke --shell /usr/sbin/nologin cloudyoke
 git clone https://github.com/Ryan-Clinton/cloudyoke.git /srv/cloudyoke/code
 install -d -o cloudyoke -g cloudyoke /srv/cloudyoke/data /srv/cloudyoke/www
-cp /srv/cloudyoke/code/deploy/cloudyoke-metar.* /srv/cloudyoke/code/deploy/cloudyoke-satellite.* /etc/systemd/system/
-systemctl daemon-reload && systemctl enable --now cloudyoke-metar.timer cloudyoke-satellite.timer
+cp /srv/cloudyoke/code/deploy/cloudyoke-metar.* /srv/cloudyoke/code/deploy/cloudyoke-satellite.* /srv/cloudyoke/code/deploy/cloudyoke-housekeep.* /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now cloudyoke-metar.timer cloudyoke-satellite.timer cloudyoke-housekeep.timer
 ```
 
 ## Adding a site

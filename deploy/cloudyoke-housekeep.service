@@ -1,0 +1,20 @@
+# Once a day: gzip ceilometer files over 14 days old and delete reference and satellite files over 400 days old
+# (server/housekeep.py). Station readings are never touched.
+[Unit]
+Description=cloudyoke: compress and expire old reference data
+
+[Service]
+Type=oneshot
+User=cloudyoke
+Group=cloudyoke
+WorkingDirectory=/srv/cloudyoke/code
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 server/housekeep.py --data /srv/cloudyoke/data --apply
+MemoryMax=200M
+Nice=15
+TimeoutStartSec=15min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/cloudyoke/data
+ProtectHome=yes
+PrivateTmp=yes

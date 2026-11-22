@@ -1,0 +1,10 @@
+[Unit]
+Description=cloudyoke: housekeeping once a day
+
+[Timer]
+OnCalendar=*-*-* 11:20:00 UTC
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

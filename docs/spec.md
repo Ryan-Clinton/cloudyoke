@@ -420,6 +420,10 @@ judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
   height, the codes, fog, visibility, and closed hours left blank), and
   `server/night_graph.py --reference EGAE` lines the airport's reports up
   under a station's night, for the comparison stage 1 needs (section 9.2).
+- **Kept for 400 days** (`server/housekeep.py`, daily, since 22 November 2026):
+  a full year, so a season can be compared with the same season before.
+  Ceilometer files are gzipped after 14 days. This covers reference and
+  satellite files only: station readings are not expired.
 
 **Met Éireann's ceilometers** (since 10 November 2026; since 22 November all 14
 on the service's own list, `met_eireann.py --all`; a site's page shows those
