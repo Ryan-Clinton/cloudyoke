@@ -1,8 +1,9 @@
 # Contributing to cloudyoke
 
-The project is at the design stage: the first station's hardware is due in
-mid-November 2026, and there is no firmware or server code here yet. That
-makes this the best time to question the design.
+The project is in early development: the first stations are being built and
+none is sending readings yet. The server already collects airport, ceilometer
+and satellite references, and the Nano station's firmware is written, but the
+ESP32's isn't. That makes this the best time to question the design.
 
 ## Joining
 

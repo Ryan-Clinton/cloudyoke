@@ -267,7 +267,9 @@ reflashing.
   - **Telescopeyoke's frames, once, by hand.** Star counts from Ryan's nights
     compared with the sensor's log during stage 1. That is an analysis done
     once, not a feed: the network never reads telescopeyoke.
-  - **Airports.** METARs every 30 minutes, free from aviationweather.gov.
+  - **Airports.** METARs, typically every 30 minutes, free from aviationweather.gov
+    and collected for every airport in the UK, Isle of Man, Ireland, USA, Canada
+    and Australia (section 5.3.1).
     Useful near Derry (EGAE), Dublin, Shannon and Cork, which are staffed. Two
     codes don't mean a clear sky: NCD (the ceilometer saw nothing directly
     overhead; Belfast International and Belfast City report "AUTO NCD" at night)

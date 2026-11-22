@@ -12,21 +12,40 @@ Public page: https://ryanclinton.uk/cloudyoke/
 
 ## Status
 
-**Early development, open to join.** The first sensor hardware is due between
-13 and 18 November 2026, and the first station goes up in Ballymoney, County
-Antrim, Northern Ireland. The Nano-over-USB station's firmware is written
-([firmware/nano-usb](firmware/nano-usb/README.md)); the ESP32's isn't. The
-server keeps references for every site, found by distance: each airport within
-150 km, Met Éireann's ceilometers in Ireland, and an infrared verdict from the
-weather satellite overhead (Meteosat, GOES or Himawari) every 10 minutes ([live](https://ryanclinton.uk/cloudyoke/live/)).
-Next milestone:
+**Early development, open to join.** No station is sending readings yet. The
+first goes up in Ballymoney, County Antrim, Northern Ireland. The Nano-over-USB
+station's firmware is written ([firmware/nano-usb](firmware/nano-usb/README.md));
+the ESP32's isn't. Next milestone:
 [first observational data](https://github.com/Ryan-Clinton/cloudyoke/milestone/1).
 
 | | |
 |---|---|
-| Phase | Parts arriving; joining open |
+| Phase | First stations being built; joining open |
 | Stations online | 0 |
-| Data | Reference sources (airports, ceilometers, satellite) |
+| Airports collected | Over 3,100, across the UK, Isle of Man, Ireland, USA, Canada and Australia |
+| Ceilometers collected | All 14 of Met Éireann's |
+| Satellite verdicts | Each registered site, every 10 minutes |
+
+## What it collects today
+
+Before any station exists, the server keeps measurements from sensors already
+running, as references to check stations against:
+
+- **Airport reports (METAR)** from every airport in those six countries, every
+  10 minutes. They are kept with their raw text. Codes like NCD, NSC and CAVOK
+  are never counted as clear, because most airport sensors can't see high cloud.
+- **Met Éireann's ceilometers:** cloud-base readings every 15 seconds, with
+  each empty reading marked as no cloud detected, a passing cloud or no data.
+  Contains Met Éireann data (CC BY 4.0).
+- **An infrared satellite verdict** for each site, from Meteosat, GOES or
+  Himawari, whichever is most nearly overhead.
+
+Files over 7 days old are bundled into compressed daily archives, and reference
+data is deleted after 400 days. Station readings are never deleted.
+[Meanwhile](https://ryanclinton.uk/astrophotography/meanwhile/), the astronomy
+forecast page on ryanclinton.uk, shows the nearest of these sensors beside its
+forecast. The network's own site pages are
+[here](https://ryanclinton.uk/cloudyoke/live/).
 
 ## Join
 
