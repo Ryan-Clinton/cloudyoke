@@ -392,7 +392,10 @@ airports are found, not listed: every airport reporting within 150 km of the
 site (`metar.py --sites`), its name and position noted in
 `data/reference/index.json`, so a site anywhere gets its own the first time the
 collector runs. (From 10 November it was four fixed airports round Ballymoney:
-City of Derry, Belfast International, Belfast City and Prestwick.) Airports
+City of Derry, Belfast International, Belfast City and Prestwick.) Since 22
+November 2026 the collector also keeps every airport reporting between 50°N and
+58°N, 11°W and 2°W (`metar.py --box`), Ireland across to western Britain, with
+or without a site, so the history exists before anything needs it. Airports
 that report AUTO NCD at night, as both Belfast airports do, are kept as NCD. A
 reference source is not a station: it is never on the map as one, never
 judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
@@ -418,8 +421,9 @@ judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
   `server/night_graph.py --reference EGAE` lines the airport's reports up
   under a station's night, for the comparison stage 1 needs (section 9.2).
 
-**Met Éireann's ceilometers** (since 10 November 2026; since 14 November every
-one within 250 km of a site, found from the service's own list of its 14):
+**Met Éireann's ceilometers** (since 10 November 2026; since 22 November all 14
+on the service's own list, `met_eireann.py --all`; a site's page shows those
+within 250 km):
 from Met Éireann's open-data EDR API (`server/met_eireann.py`, CC BY 4.0, "Contains Met
 Éireann data"). Each reading gives up to five cloud layers with base in feet and
 cover in oktas, 9 meaning the sky is hidden. The service is marked

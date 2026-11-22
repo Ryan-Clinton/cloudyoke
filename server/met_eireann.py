@@ -3,6 +3,7 @@
 
     python server/met_eireann.py --data data --sites --hours 6
     python server/met_eireann.py --data data --stations 17,104 --hours 6
+    python server/met_eireann.py --data data --all --hours 3     every ceilometer the service has
 
 Met Éireann's open-data EDR API (https://opendata2.met.ie/edr/docs) serves ceilometer readings every 15
 seconds: up to five cloud layers, each with its base (sent in hundreds of feet, stored in feet) and its cover
@@ -181,6 +182,7 @@ def main():
                     help="at least this far back, and further to the newest reading already stored; the service keeps about 26")
     ap.add_argument("--stations", help="Met Éireann EDR location ids, comma-separated")
     ap.add_argument("--sites", action="store_true", help=f"every ceilometer within {RADIUS_KM} km of a site in the registry")
+    ap.add_argument("--all", action="store_true", help="every ceilometer the service has, near a site or not")
     a = ap.parse_args()
     end = datetime.now(timezone.utc)
     try:
@@ -190,6 +192,8 @@ def main():
     wanted = [int(s) for s in (a.stations or "").split(",") if s.strip()]
     if a.sites:
         wanted += [i for i in near_sites(a.data, places) if i not in wanted]
+    if a.all:
+        wanted += [i for i in sorted(places) if i not in wanted]
     if not wanted:
         print("met_eireann: no ceilometers near any site")
         return

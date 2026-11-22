@@ -3,6 +3,7 @@
 
     python server/metar.py --data data --sites --hours 6         each site's airports, found by distance
     python server/metar.py --data data --ids EGAE --hours 360    named airports (a backfill)
+    python server/metar.py --data data --box 50,-11,58,-2        every airport in a box (south,west,north,east)
 
 Fetches from the Aviation Weather Center's free API, keeps every report once (by airport, observation
 time and the raw text, so a correction is kept beside the original) in data/reference/<ICAO>/<UTC date>.jsonl.
@@ -33,6 +34,8 @@ RADIUS_KM = 150                                  # a site's airports: every one 
 AGENT = "cloudyoke (github.com/Ryan-Clinton/cloudyoke)"
 MILE_KM = 1.609344
 CODES = ("CAVOK", "NSC", "NCD", "CLR", "SKC")    # whole-sky codes as they appear in a report's text
+TILE_LAT, TILE_LON = 2, 3                        # a box is asked for in tiles: 8° by 9° at once timed out (504, 22 Nov 2026)
+TILE_TIMEOUT = 20                                # seconds, so a slow service can't use up the whole run
 
 
 def fetch(ids, hours):
@@ -139,13 +142,41 @@ def fetch_near(lat, lon, hours, radius_km=RADIUS_KM):
     dlat = radius_km / 111.2
     dlon = min(radius_km / (111.2 * max(math.cos(math.radians(lat)), 0.05)), 179)
     box = f"{max(lat - dlat, -90):.2f},{max(lon - dlon, -180):.2f},{min(lat + dlat, 90):.2f},{min(lon + dlon, 180):.2f}"
+    return [m for m in fetch_bbox(box, hours) if m.get("lat") is not None and m.get("lon") is not None
+            and registry.distance(lat, lon, m["lat"], m["lon"])[0] <= radius_km]
+
+
+def fetch_bbox(box, hours, timeout=30):
     url = f"{API}?{urllib.parse.urlencode({'bbox': box, 'format': 'json', 'hours': hours})}"
     req = urllib.request.Request(url, headers={"User-Agent": AGENT})
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:
         body = r.read()
-    records = json.loads(body) if body.strip() else []
-    return [m for m in records if m.get("lat") is not None and m.get("lon") is not None
-            and registry.distance(lat, lon, m["lat"], m["lon"])[0] <= radius_km]
+    return json.loads(body) if body.strip() else []
+
+
+def tiles(south, west, north, east):
+    """A box as "south,west,north,east" tiles small enough for the API to answer."""
+    out, lat = [], south
+    while lat < north:
+        lon = west
+        while lon < east:
+            out.append(f"{lat:g},{lon:g},{min(lat + TILE_LAT, north):g},{min(lon + TILE_LON, east):g}")
+            lon += TILE_LON
+        lat += TILE_LAT
+    return out
+
+
+def parse_box(text):
+    """"south,west,north,east" as four numbers, or ValueError."""
+    south, west, north, east = (float(v) for v in text.split(","))
+    if not (-90 <= south < north <= 90 and -180 <= west < east <= 180):
+        raise ValueError(text)
+    return south, west, north, east
+
+
+def unique_records(records):
+    """Each report once: neighbouring tiles and a site's search can all return the same one."""
+    return list({(m["icaoId"], m["obsTime"], m.get("rawOb")): m for m in records}.values())
 
 
 def note_positions(root, records):
@@ -160,11 +191,21 @@ def main():
     ap.add_argument("--data", default="data")
     ap.add_argument("--ids", help="ICAO codes, comma-separated")
     ap.add_argument("--sites", action="store_true", help=f"every airport within {RADIUS_KM} km of each site in the registry")
+    ap.add_argument("--box", help="every airport in south,west,north,east, with or without a site")
     ap.add_argument("--hours", type=int, default=6, help="how far back to ask for; 360 on a first run")
     a = ap.parse_args()
-    if not (a.ids or a.sites):
-        ap.error("give --ids, --sites or both")
+    if not (a.ids or a.sites or a.box):
+        ap.error("give --ids, --sites, --box or a mix")
+    try:
+        box = parse_box(a.box) if a.box else None
+    except ValueError:
+        ap.error("--box takes south,west,north,east")
     records, problems = [], []
+    for tile in tiles(*box) if box else []:
+        try:
+            records += fetch_bbox(tile, a.hours, TILE_TIMEOUT)
+        except (OSError, ValueError) as e:      # the rest still count; the next run's window covers this one
+            problems.append(f"{tile}: {e}")
     if a.ids:
         try:
             records += fetch([i.strip().upper() for i in a.ids.split(",") if i.strip()], a.hours)
@@ -178,7 +219,7 @@ def main():
                 problems.append(f"{sid}: {e}")
     if problems and not records:
         sys.exit(f"metar: couldn't fetch: {'; '.join(problems)}")
-    records = [m for m in records if m.get("icaoId") and m.get("obsTime")]
+    records = unique_records(m for m in records if m.get("icaoId") and m.get("obsTime"))
     note_positions(a.data, records)
     new = store(a.data, [decode(m) for m in records])
     airports = len({m["icaoId"] for m in records})

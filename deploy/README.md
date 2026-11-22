@@ -5,12 +5,13 @@ this repository) and `/srv/cloudyoke/data`.
 
 | Unit | Does |
 |---|---|
-| `cloudyoke-metar.service` + `.timer` | Every 30 minutes, for every site in the registry: the reports of each airport within 150 km (`server/metar.py --sites`), then Met Éireann's ceilometers within 250 km (`server/met_eireann.py --sites`), then every site's page in `/srv/cloudyoke/www` (`server/dashboard.py`), served at ryanclinton.uk/cloudyoke/live/ by the site's nginx |
+| `cloudyoke-metar.service` + `.timer` | Every 30 minutes: every airport in the collection box and within 150 km of each site (`server/metar.py --box ... --sites`), then all of Met Éireann's ceilometers (`server/met_eireann.py --all`), then every site's page in `/srv/cloudyoke/www` (`server/dashboard.py`), served at ryanclinton.uk/cloudyoke/live/ by the site's nginx |
 | `cloudyoke-satellite.service` + `.timer` | Every 10 minutes, the verdict of the satellite overhead for each site (`server/satellite.py`), then the pages again |
 
-Sites come from the registry (`server/registry.py`, files in `/srv/cloudyoke/data`), and each site's airports
-and ceilometers are found by distance. The one place named in a unit is Dublin Airport (`--ids EIDW` in
-`cloudyoke-metar.service`), collected with no site or page of its own because Meanwhile on ryanclinton.uk shows it.
+Sites come from the registry (`server/registry.py`, files in `/srv/cloudyoke/data`), and each site's page shows
+the airports and ceilometers found by distance. Collection is wider than the sites: every airport reporting in
+the box 50°N to 58°N, 11°W to 2°W (Ireland across to western Britain, `--box`) and all of Met Éireann's
+ceilometers (`--all`), with no site or page of their own. Meanwhile on ryanclinton.uk shows the nearest airport.
 
 Meanwhile reads these stored files directly, so changing them means telling that project first:
 `data/reference/index.json` (`kind`, `name`, `lat`, `lon`) and `data/reference/<ICAO>/<UTC date>.jsonl`

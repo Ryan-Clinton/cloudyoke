@@ -12,19 +12,20 @@ User=cloudyoke
 Group=cloudyoke
 WorkingDirectory=/srv/cloudyoke/code
 Environment=PYTHONDONTWRITEBYTECODE=1
-# --ids: airports collected without a site, for Meanwhile's airport line on ryanclinton.uk, which reads the stored
-# files. EIDW is Dublin Airport.
-ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --ids EIDW --sites --hours 3
-# Met Éireann's ceilometers within 250 km of a site (Ireland's network; none for sites elsewhere), after the airports; '-' so a failure here never
+# --box: every airport from Ireland across to western Britain, with or without a site. Meanwhile's airport line on
+# ryanclinton.uk reads the stored files.
+ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --box 50,-11,58,-2 --sites --hours 3
+# All of Met Éireann's ceilometers, after the airports; '-' so a failure here never
 # stops the airport fetch from counting as done. Each fetch reaches back to the newest reading already stored
 # (up to 26 hours), so a feed that stalls and then publishes its backlog is still caught. CC BY 4.0,
 # "Contains Met Éireann data"
-ExecStart=-/usr/bin/python3 server/met_eireann.py --data /srv/cloudyoke/data --sites --hours 3
+ExecStart=-/usr/bin/python3 server/met_eireann.py --data /srv/cloudyoke/data --all --hours 3
 # Then every site's page (ryanclinton.uk/cloudyoke/live/) and status.json, so a stopped source shows as stale
 ExecStart=-/usr/bin/python3 server/dashboard.py --data /srv/cloudyoke/data --out /srv/cloudyoke/www
 MemoryMax=200M
 Nice=10
-TimeoutStartSec=5min
+# Long enough for all 14 ceilometers to catch up after a stalled feed (up to 52 requests each); the timer runs every 30
+TimeoutStartSec=20min
 NoNewPrivileges=yes
 ProtectSystem=strict
 ReadWritePaths=/srv/cloudyoke/data /srv/cloudyoke/www

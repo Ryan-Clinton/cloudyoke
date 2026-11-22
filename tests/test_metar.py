@@ -89,5 +89,21 @@ class GraphTest(unittest.TestCase):
         self.assertIn("no reports from EGAE this night", empty)
 
 
+class BoxTest(unittest.TestCase):
+    def test_tiles_cover_the_box_and_stop_at_its_edge(self):
+        got = metar.tiles(50, -11, 53, -6)
+        self.assertEqual(got, ["50,-11,52,-8", "50,-8,52,-6", "52,-11,53,-8", "52,-8,53,-6"])
+
+    def test_a_bad_box_is_refused(self):
+        self.assertEqual(metar.parse_box("50,-11,58,-2"), (50, -11, 58, -2))
+        for bad in ("58,-11,50,-2", "50,-2,58,-11", "50,-11,58", "north,-11,58,-2", "50,-11,91,-2"):
+            with self.assertRaises(ValueError):
+                metar.parse_box(bad)
+
+    def test_a_report_from_two_tiles_counts_once_but_a_correction_stays(self):
+        corrected = dict(CAVOK, rawOb=CAVOK["rawOb"].replace("METAR EGAE 092320Z", "METAR EGAE 092320Z COR"))
+        self.assertEqual(len(metar.unique_records([CAVOK, dict(CAVOK), corrected])), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
