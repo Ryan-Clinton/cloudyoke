@@ -8,8 +8,13 @@ this repository) and `/srv/cloudyoke/data`.
 | `cloudyoke-metar.service` + `.timer` | Every 30 minutes, for every site in the registry: the reports of each airport within 150 km (`server/metar.py --sites`), then Met Éireann's ceilometers within 250 km (`server/met_eireann.py --sites`), then every site's page in `/srv/cloudyoke/www` (`server/dashboard.py`), served at ryanclinton.uk/cloudyoke/live/ by the site's nginx |
 | `cloudyoke-satellite.service` + `.timer` | Every 10 minutes, the verdict of the satellite overhead for each site (`server/satellite.py`), then the pages again |
 
-Nothing in either unit names a place: sites come from the registry (`server/registry.py`, files in
-`/srv/cloudyoke/data`), and each site's airports and ceilometers are found by distance.
+Sites come from the registry (`server/registry.py`, files in `/srv/cloudyoke/data`), and each site's airports
+and ceilometers are found by distance. The one place named in a unit is Dublin Airport (`--ids EIDW` in
+`cloudyoke-metar.service`), collected with no site or page of its own because Meanwhile on ryanclinton.uk shows it.
+
+Meanwhile reads these stored files directly, so changing them means telling that project first:
+`data/reference/index.json` (`kind`, `name`, `lat`, `lon`) and `data/reference/<ICAO>/<UTC date>.jsonl`
+(`obs_time`, `cover`, `layers`, `vertical_visibility_ft`, `weather`, `correction`).
 
 Set up once, as root:
 

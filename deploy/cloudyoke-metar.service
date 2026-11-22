@@ -12,7 +12,9 @@ User=cloudyoke
 Group=cloudyoke
 WorkingDirectory=/srv/cloudyoke/code
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --sites --hours 3
+# --ids: airports collected without a site, for Meanwhile's airport line on ryanclinton.uk, which reads the stored
+# files. EIDW is Dublin Airport.
+ExecStart=/usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --ids EIDW --sites --hours 3
 # Met Éireann's ceilometers within 250 km of a site (Ireland's network; none for sites elsewhere), after the airports; '-' so a failure here never
 # stops the airport fetch from counting as done. Each fetch reaches back to the newest reading already stored
 # (up to 26 hours), so a feed that stalls and then publishes its backlog is still caught. CC BY 4.0,
