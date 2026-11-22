@@ -1,0 +1,23 @@
+# Every 10 minutes: the latest report from every airport in the UK, Isle of Man, Ireland, USA, Canada and Australia,
+# from the Aviation Weather Center's one worldwide file. Each report is kept once. The lock stops this and the other
+# collectors writing the same files at once.
+[Unit]
+Description=cloudyoke: collect airport reports for the UK, Ireland, USA, Canada and Australia
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cloudyoke
+Group=cloudyoke
+WorkingDirectory=/srv/cloudyoke/code
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/flock -w 300 /srv/cloudyoke/data/.collect.lock /usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --countries GB,IM,IE,US,CA,AU
+MemoryMax=200M
+Nice=10
+TimeoutStartSec=9min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/cloudyoke/data
+ProtectHome=yes
+PrivateTmp=yes

@@ -394,7 +394,9 @@ site (`metar.py --sites`), its name and position noted in
 collector runs. (From 10 November it was four fixed airports round Ballymoney:
 City of Derry, Belfast International, Belfast City and Prestwick.) Since 22
 November 2026 the collector also keeps every airport reporting between 50°N and
-58°N, 11°W and 2°W (`metar.py --box`), Ireland across to western Britain, with
+58°N, 11°W and 2°W (`metar.py --box`), Ireland across to western Britain, and
+every airport in the UK, Isle of Man, Ireland, USA, Canada and Australia, every
+10 minutes from the service's one worldwide file (`metar.py --countries`), with
 or without a site, so the history exists before anything needs it. Airports
 that report AUTO NCD at night, as both Belfast airports do, are kept as NCD. A
 reference source is not a station: it is never on the map as one, never
@@ -422,7 +424,8 @@ judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.
   under a station's night, for the comparison stage 1 needs (section 9.2).
 - **Kept for 400 days** (`server/housekeep.py`, daily, since 22 November 2026):
   a full year, so a season can be compared with the same season before.
-  Ceilometer files are gzipped after 14 days. This covers reference and
+  After 7 days each day's airport and ceilometer files become one compressed
+  bundle in `data/archive/`, rows unchanged. This covers reference and
   satellite files only: station readings are not expired.
 
 **Met Éireann's ceilometers** (since 10 November 2026; since 22 November all 14

@@ -1,7 +1,8 @@
-# Once a day: gzip ceilometer files over 14 days old and delete reference and satellite files over 400 days old
-# (server/housekeep.py). Station readings are never touched.
+# Once a day: bundle airport and ceilometer files over 7 days old into compressed daily archives, and delete reference
+# and satellite data over 400 days old (server/housekeep.py). Station readings are never touched. The lock stops a
+# collector writing to a file while it's being bundled.
 [Unit]
-Description=cloudyoke: compress and expire old reference data
+Description=cloudyoke: bundle and expire old reference data
 
 [Service]
 Type=oneshot
@@ -9,10 +10,10 @@ User=cloudyoke
 Group=cloudyoke
 WorkingDirectory=/srv/cloudyoke/code
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/usr/bin/python3 server/housekeep.py --data /srv/cloudyoke/data --apply
-MemoryMax=200M
+ExecStart=/usr/bin/flock -w 600 /srv/cloudyoke/data/.collect.lock /usr/bin/python3 server/housekeep.py --data /srv/cloudyoke/data --apply
+MemoryMax=600M
 Nice=15
-TimeoutStartSec=15min
+TimeoutStartSec=30min
 NoNewPrivileges=yes
 ProtectSystem=strict
 ReadWritePaths=/srv/cloudyoke/data

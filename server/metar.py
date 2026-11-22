@@ -4,6 +4,7 @@
     python server/metar.py --data data --sites --hours 6         each site's airports, found by distance
     python server/metar.py --data data --ids EGAE --hours 360    named airports (a backfill)
     python server/metar.py --data data --box 50,-11,58,-2        every airport in a box (south,west,north,east)
+    python server/metar.py --data data --countries GB,IE,US      every airport's latest report in those countries
 
 Fetches from the Aviation Weather Center's free API, keeps every report once (by airport, observation
 time and the raw text, so a correction is kept beside the original) in data/reference/<ICAO>/<UTC date>.jsonl.
@@ -17,6 +18,9 @@ matters to aviation, which can still be cloud that matters to a camera (docs/spe
 Standard library only.
 """
 import argparse
+import bz2
+import csv
+import gzip
 import json
 import math
 import os
@@ -30,6 +34,9 @@ from pathlib import Path
 import registry
 
 API = "https://aviationweather.gov/api/data/metar"
+CACHE_METARS = "https://aviationweather.gov/data/cache/metars.cache.csv.gz"       # the latest report from every airport
+CACHE_STATIONS = "https://aviationweather.gov/data/cache/stations.cache.json.gz"  # each airport's country and name
+LAYER_CODES = ("FEW", "SCT", "BKN", "OVC")       # in rising order of cover
 RADIUS_KM = 150                                  # a site's airports: every one reporting within this distance
 AGENT = "cloudyoke (github.com/Ryan-Clinton/cloudyoke)"
 MILE_KM = 1.609344
@@ -122,17 +129,28 @@ def store(root, observations):
 
 
 def load(root, icao, start, end):
-    """Kept reports for one airport with start <= observation time < end, oldest first."""
-    rows = []
+    """Kept reports for one airport with start <= observation time < end, oldest first, from its daily files and
+    the compressed bundles older days move into (server/housekeep.py). A report in both counts once."""
+    rows, seen = [], set()
+
+    def take(line):
+        try:
+            r = json.loads(line)
+            t = datetime.fromisoformat(r["obs_time"].replace("Z", "+00:00"))
+        except (ValueError, KeyError):
+            return
+        if r.get("icao", icao) == icao and start <= t < end and (r["obs_time"], r.get("raw")) not in seen:
+            seen.add((r["obs_time"], r.get("raw")))
+            rows.append((t, r))
+
     for path in sorted((Path(root) / "reference" / icao).glob("*.jsonl")):
         for line in path.read_text(encoding="utf-8").splitlines():
-            try:
-                r = json.loads(line)
-                t = datetime.fromisoformat(r["obs_time"].replace("Z", "+00:00"))
-            except (ValueError, KeyError):
-                continue
-            if start <= t < end:
-                rows.append((t, r))
+            take(line)
+    for path in sorted((Path(root) / "archive" / "airports").glob("*.jsonl.bz2")):
+        if start.strftime("%Y-%m-%d") <= path.name[:10] <= end.strftime("%Y-%m-%d"):
+            with bz2.open(path, "rt", encoding="utf-8") as f:
+                for line in f:
+                    take(line)
     return sorted(rows, key=lambda x: x[0])
 
 
@@ -180,10 +198,68 @@ def unique_records(records):
 
 
 def note_positions(root, records):
-    """Each airport's name and position in the reference index, so pages can say how far it is from a site."""
+    """Each new airport's name and position in the reference index, so pages can say how far it is from a site.
+    One already there is left alone, so two feeds spelling a name differently can't keep rewriting the index."""
+    known = registry.references(root)
     registry.note_references(root, {m["icaoId"]: {"kind": "metar", "name": (m.get("name") or m["icaoId"]).split(",")[0],
                                                    "lat": m["lat"], "lon": m["lon"]}
-                                    for m in records if m.get("icaoId") and m.get("lat") is not None})
+                                    for m in records if m.get("icaoId") and m.get("lat") is not None
+                                    and m["icaoId"] not in known})
+
+
+def cache_number(text):
+    try:
+        v = float(text)
+    except (TypeError, ValueError):
+        return None
+    return int(v) if v.is_integer() else v
+
+
+def cache_record(header, row, name):
+    """One row of the worldwide CSV as the same record the JSON API gives, so decode() stores it the same way. The
+    CSV repeats its sky_cover and cloud_base_ft_agl columns, so they're read by position."""
+    row = row + [""] * (len(header) - len(row))
+    d = dict(zip(header, row))
+    raw = d["raw_text"]
+    clouds = [{"cover": row[i], "base": cache_number(row[i + 1])}
+              for i, c in enumerate(header) if c == "sky_cover" and row[i] in LAYER_CODES]
+    cover = max((c["cover"] for c in clouds), key=LAYER_CODES.index, default=None)
+    q = re.search(r"\bQ(\d{4})\b", raw)         # the report's own hPa, where it gives them; the CSV has inches of mercury
+    inches = cache_number(d.get("altim_in_hg"))
+    wdir = d.get("wind_dir_degrees") or None
+    return {
+        "icaoId": d["station_id"],
+        "obsTime": int(datetime.fromisoformat(d["observation_time"].replace("Z", "+00:00")).timestamp()),
+        "rawOb": raw, "name": name, "lat": cache_number(d.get("latitude")), "lon": cache_number(d.get("longitude")),
+        "temp": cache_number(d.get("temp_c")), "dewp": cache_number(d.get("dewpoint_c")),
+        "wdir": cache_number(wdir) if cache_number(wdir) is not None else wdir,
+        "wspd": cache_number(d.get("wind_speed_kt")), "visib": d.get("visibility_statute_mi") or None,
+        "altim": int(q.group(1)) if q else round(inches * 33.8639, 1) if inches is not None else None,
+        "cover": cover, "clouds": clouds, "wxString": d.get("wx_string") or None, "metarType": d.get("metar_type") or None,
+    }
+
+
+def cache_get(url):
+    req = urllib.request.Request(url, headers={"User-Agent": AGENT})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return gzip.decompress(r.read())
+
+
+def fetch_countries(countries):
+    """The latest report from every airport in these countries, from the worldwide file: one request for all."""
+    names = {s["icaoId"]: s.get("site") for s in json.loads(cache_get(CACHE_STATIONS))
+             if s.get("icaoId") and s.get("country") in countries}
+    rows = csv.reader(cache_get(CACHE_METARS).decode("utf-8", "replace").splitlines())
+    header = next(r for r in rows if r and r[0] == "raw_text")
+    at = header.index("station_id")
+    out = []
+    for row in rows:
+        if len(row) > at and row[at] in names:
+            try:
+                out.append(cache_record(header, row, names[row[at]]))
+            except (ValueError, KeyError):          # one bad row never costs the rest
+                continue
+    return out
 
 
 def main():
@@ -192,15 +268,21 @@ def main():
     ap.add_argument("--ids", help="ICAO codes, comma-separated")
     ap.add_argument("--sites", action="store_true", help=f"every airport within {RADIUS_KM} km of each site in the registry")
     ap.add_argument("--box", help="every airport in south,west,north,east, with or without a site")
+    ap.add_argument("--countries", help="every airport's latest report in these ISO country codes, comma-separated")
     ap.add_argument("--hours", type=int, default=6, help="how far back to ask for; 360 on a first run")
     a = ap.parse_args()
-    if not (a.ids or a.sites or a.box):
-        ap.error("give --ids, --sites, --box or a mix")
+    if not (a.ids or a.sites or a.box or a.countries):
+        ap.error("give --ids, --sites, --box, --countries or a mix")
     try:
         box = parse_box(a.box) if a.box else None
     except ValueError:
         ap.error("--box takes south,west,north,east")
     records, problems = [], []
+    if a.countries:
+        try:
+            records += fetch_countries({c.strip().upper() for c in a.countries.split(",") if c.strip()})
+        except (OSError, ValueError, KeyError, StopIteration) as e:
+            problems.append(f"--countries: {e}")
     for tile in tiles(*box) if box else []:
         try:
             records += fetch_bbox(tile, a.hours, TILE_TIMEOUT)

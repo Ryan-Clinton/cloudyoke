@@ -89,6 +89,36 @@ class GraphTest(unittest.TestCase):
         self.assertIn("no reports from EGAE this night", empty)
 
 
+class WorldwideFileTest(unittest.TestCase):
+    HEADER = ["raw_text", "station_id", "observation_time", "latitude", "longitude", "temp_c", "dewpoint_c",
+              "wind_dir_degrees", "wind_speed_kt", "visibility_statute_mi", "altim_in_hg", "wx_string",
+              "sky_cover", "cloud_base_ft_agl", "sky_cover", "cloud_base_ft_agl", "metar_type"]
+
+    def row(self, raw, station, sky=("", "", "", ""), inches="30.00"):
+        return [raw, station, "2026-11-22T20:52:00.000Z", "38.85", "-77.03", "10.0", "5.0", "360", "5", "10+", inches, "",
+                *sky, "METAR"]
+
+    def test_layers_cover_and_time_match_the_api(self):
+        raw = "METAR KDCA 222052Z 36005KT 10SM FEW042 OVC060 10/05 A2994"
+        m = metar.cache_record(self.HEADER, self.row(raw, "KDCA", ("FEW", "4200", "OVC", "6000"), "29.94"), "Washington")
+        o = metar.decode(m)
+        self.assertEqual((o["icao"], o["obs_time"], o["cover"]), ("KDCA", "2026-11-22T20:52:00Z", "OVC"))
+        self.assertEqual(o["layers"], [{"cover": "FEW", "base_ft": 4200}, {"cover": "OVC", "base_ft": 6000}])
+        self.assertEqual(o["pressure_hpa"], 1013.9)
+
+    def test_ncd_stays_ncd_and_a_blank_report_has_no_cover(self):
+        ncd = metar.decode(metar.cache_record(self.HEADER, self.row("METAR YSSY 222100Z AUTO 9999 NCD 20/10 Q1010", "YSSY"), "Sydney"))
+        self.assertEqual((ncd["cover"], ncd["pressure_hpa"]), ("NCD", 1010))
+        blank = metar.decode(metar.cache_record(self.HEADER, self.row("METAR EGWC 221550Z AUTO //// ///// Q////", "EGWC"), "Cosford"))
+        self.assertIsNone(blank["cover"])
+
+    def test_a_known_airport_keeps_its_index_entry(self):
+        with tempfile.TemporaryDirectory() as d:
+            metar.note_positions(d, [{"icaoId": "EIDW", "name": "Dublin Arpt, IE", "lat": 53.4, "lon": -6.3}])
+            metar.note_positions(d, [{"icaoId": "EIDW", "name": "Dublin", "lat": 53.5, "lon": -6.2}])
+            self.assertEqual(metar.registry.references(d)["EIDW"]["name"], "Dublin Arpt")
+
+
 class BoxTest(unittest.TestCase):
     def test_tiles_cover_the_box_and_stop_at_its_edge(self):
         got = metar.tiles(50, -11, 53, -6)

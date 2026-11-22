@@ -7,19 +7,23 @@ this repository) and `/srv/cloudyoke/data`.
 |---|---|
 | `cloudyoke-metar.service` + `.timer` | Every 30 minutes: every airport in the collection box and within 150 km of each site (`server/metar.py --box ... --sites`), then all of Met Éireann's ceilometers (`server/met_eireann.py --all`), then every site's page in `/srv/cloudyoke/www` (`server/dashboard.py`), served at ryanclinton.uk/cloudyoke/live/ by the site's nginx |
 | `cloudyoke-satellite.service` + `.timer` | Every 10 minutes, the verdict of the satellite overhead for each site (`server/satellite.py`), then the pages again |
-| `cloudyoke-housekeep.service` + `.timer` | Once a day: gzips ceilometer files over 14 days old and deletes reference and satellite files over 400 days old (`server/housekeep.py`). Never touches station readings |
+| `cloudyoke-airports.service` + `.timer` | Every 10 minutes: the latest report from every airport in the UK, Isle of Man, Ireland, USA, Canada and Australia, from one worldwide file (`server/metar.py --countries`) |
+| `cloudyoke-housekeep.service` + `.timer` | Once a day: bundles airport and ceilometer files over 7 days old into `data/archive/airports/<date>.jsonl.bz2` and `data/archive/ceilometers/<date>.jsonl.xz`, and deletes reference and satellite data over 400 days old (`server/housekeep.py`). Never touches station readings |
+
+The collectors and housekeeping share a lock, `/srv/cloudyoke/data/.collect.lock`, so two never write the same files.
 
 Sites come from the registry (`server/registry.py`, files in `/srv/cloudyoke/data`), and each site's page shows
 the airports and ceilometers found by distance. Collection is wider than the sites: every airport reporting in
-the box 50°N to 58°N, 11°W to 2°W (Ireland across to western Britain, `--box`) and all of Met Éireann's
-ceilometers (`--all`), with no site or page of their own. Meanwhile on ryanclinton.uk shows the nearest airport.
+the box 50°N to 58°N, 11°W to 2°W (Ireland across to western Britain, `--box`), every airport in the countries
+above (`--countries`) and all of Met Éireann's ceilometers (`--all`), with no site or page of their own. Meanwhile
+on ryanclinton.uk shows the nearest sensors.
 
 Meanwhile reads these stored files directly, so changing them means telling that project first:
 `data/reference/index.json` (`kind`, `name`, `lat`, `lon`) and `data/reference/<ICAO>/<UTC date>.jsonl`
 (`obs_time`, `cover`, `layers`, `vertical_visibility_ft`, `weather`, `correction`, and the raw report in `raw`).
 For ceilometers it reads `data/reference/MET-<id>/<UTC date>.jsonl` (`obs_time`, `layers[].base_ft`,
 `layers[].oktas`, and from 22 November 2026 `sky_status`: `layers`, `none_detected`, `hit_without_layer` or
-`no_data`; older rows don't have it), today's and yesterday's plain files only, so the 14-day gzip doesn't reach it. The public page's
+`no_data`; older rows don't have it), today's and yesterday's plain files only, so the 7-day bundling doesn't reach it. The public page's
 `/cloudyoke/#join` anchor, in the ryanclinton.uk project, is linked from every Meanwhile page.
 
 Set up once, as root:
@@ -28,8 +32,8 @@ Set up once, as root:
 useradd --system --home /srv/cloudyoke --shell /usr/sbin/nologin cloudyoke
 git clone https://github.com/Ryan-Clinton/cloudyoke.git /srv/cloudyoke/code
 install -d -o cloudyoke -g cloudyoke /srv/cloudyoke/data /srv/cloudyoke/www
-cp /srv/cloudyoke/code/deploy/cloudyoke-metar.* /srv/cloudyoke/code/deploy/cloudyoke-satellite.* /srv/cloudyoke/code/deploy/cloudyoke-housekeep.* /etc/systemd/system/
-systemctl daemon-reload && systemctl enable --now cloudyoke-metar.timer cloudyoke-satellite.timer cloudyoke-housekeep.timer
+cp /srv/cloudyoke/code/deploy/cloudyoke-*.service /srv/cloudyoke/code/deploy/cloudyoke-*.timer /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now cloudyoke-metar.timer cloudyoke-airports.timer cloudyoke-satellite.timer cloudyoke-housekeep.timer
 ```
 
 ## Adding a site
