@@ -16,7 +16,10 @@ ceilometers (`--all`), with no site or page of their own. Meanwhile on ryanclint
 
 Meanwhile reads these stored files directly, so changing them means telling that project first:
 `data/reference/index.json` (`kind`, `name`, `lat`, `lon`) and `data/reference/<ICAO>/<UTC date>.jsonl`
-(`obs_time`, `cover`, `layers`, `vertical_visibility_ft`, `weather`, `correction`).
+(`obs_time`, `cover`, `layers`, `vertical_visibility_ft`, `weather`, `correction`, and the raw report in `raw`).
+For ceilometers it reads `data/reference/MET-<id>/<UTC date>.jsonl` (`obs_time`, `layers[].base_ft`,
+`layers[].oktas`), today's and yesterday's plain files only, so the 14-day gzip doesn't reach it. The public page's
+`/cloudyoke/#join` anchor, in the ryanclinton.uk project, is linked from every Meanwhile page.
 
 Set up once, as root:
 
