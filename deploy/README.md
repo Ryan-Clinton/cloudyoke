@@ -15,16 +15,17 @@ The collectors and housekeeping share a lock, `/srv/cloudyoke/data/.collect.lock
 Sites come from the registry (`server/registry.py`, files in `/srv/cloudyoke/data`), and each site's page shows
 the airports and ceilometers found by distance. Collection is wider than the sites: every airport reporting in
 the box 50°N to 58°N, 11°W to 2°W (Ireland across to western Britain, `--box`), every airport in the countries
-above (`--countries`) and all of Met Éireann's ceilometers (`--all`), with no site or page of their own. Meanwhile
-on ryanclinton.uk shows the nearest sensors.
+above (`--countries`) and all of Met Éireann's ceilometers (`--all`), with no site or page of their own.
+[Meanwhile](https://meanwhileinspace.com) shows the nearest sensors.
 
-Meanwhile reads these stored files directly, so changing them means telling that project first:
+Meanwhile (its own project, `~/meanwhileinspace`) reads these stored files directly and read-only, as system user
+`meanwhile`, so they must stay world-readable, and changing them means telling that project's session first:
 `data/reference/index.json` (`kind`, `name`, `lat`, `lon`) and `data/reference/<ICAO>/<UTC date>.jsonl`
 (`obs_time`, `cover`, `layers`, `vertical_visibility_ft`, `weather`, `correction`, and the raw report in `raw`).
 For ceilometers it reads `data/reference/MET-<id>/<UTC date>.jsonl` (`obs_time`, `layers[].base_ft`,
 `layers[].oktas`, and from 22 November 2026 `sky_status`: `layers`, `none_detected`, `hit_without_layer` or
 `no_data`; older rows don't have it), today's and yesterday's plain files only, so the 7-day bundling doesn't reach it. The public page's
-`/cloudyoke/#join` anchor, in the ryanclinton.uk project, is linked from every Meanwhile page.
+`/cloudyoke/#join` anchor stays in the ryanclinton.uk project, and every Meanwhile page links to it by its full address.
 
 Set up once, as root:
 

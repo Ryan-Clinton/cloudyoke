@@ -12,8 +12,8 @@ User=cloudyoke
 Group=cloudyoke
 WorkingDirectory=/srv/cloudyoke/code
 Environment=PYTHONDONTWRITEBYTECODE=1
-# --box: every airport from Ireland across to western Britain, with or without a site. Meanwhile's airport line on
-# ryanclinton.uk reads the stored files.
+# --box: every airport from Ireland across to western Britain, with or without a site. Meanwhile's airport line
+# (meanwhileinspace.com) reads the stored files.
 ExecStart=/usr/bin/flock -w 300 /srv/cloudyoke/data/.collect.lock /usr/bin/python3 server/metar.py --data /srv/cloudyoke/data --box 50,-11,58,-2 --sites --hours 3
 # All of Met Éireann's ceilometers, after the airports; '-' so a failure here never
 # stops the airport fetch from counting as done. Each fetch reaches back to the newest reading already stored

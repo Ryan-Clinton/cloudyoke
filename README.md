@@ -42,9 +42,8 @@ running, as references to check stations against:
 
 Files over 7 days old are bundled into compressed daily archives, and reference
 data is deleted after 400 days. Station readings are never deleted.
-[Meanwhile](https://ryanclinton.uk/astrophotography/meanwhile/), the astronomy
-forecast page on ryanclinton.uk, shows the nearest of these sensors beside its
-forecast. The network's own site pages are
+[Meanwhile](https://meanwhileinspace.com), an astronomy forecast site, shows the
+nearest of these sensors beside its forecast. The network's own site pages are
 [here](https://ryanclinton.uk/cloudyoke/live/).
 
 ## Join
