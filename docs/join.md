@@ -1,11 +1,12 @@
 # Joining
 
-A site joins with an infrared cloud sensor pointing straight up:
+A site joins with an infrared cloud sensor pointing straight up, or with the data from an all-sky camera it already runs:
 
 | You have | You do |
 |---|---|
 | About £24 and an evening | Build the station: an ESP32, an MLX90614 (BAA) and a BME280 in a weatherproof box, on your WiFi and an old phone charger, no computer, or a wired, solar or 4G version ([hardware/build.md](../hardware/build.md)). Several round your site: [ring.md](ring.md). Its firmware is being written ([issue 3](https://github.com/Ryan-Clinton/cloudyoke/issues/3)); parts can be ordered now |
 | An AAG CloudWatcher, Boltwood or other ASCOM ObservingConditions sensor | Help test the read-only bridge ([issue 7](https://github.com/Ryan-Clinton/cloudyoke/issues/7)) |
+| An all-sky camera (indi-allsky, Allsky or anything else) | Say hello and tell us what it records: star counts, sky brightness, or an infrared sensor attached to it. The project only uses data its owner chooses to send, and never collects from a camera's public page. There's no way to send it yet, so the first owners help decide the format |
 
 ## Talk
 

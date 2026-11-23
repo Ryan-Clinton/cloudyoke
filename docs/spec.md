@@ -119,6 +119,13 @@ anything, through a small program on their own PC or Raspberry Pi: a
 called working until it has run against a real sensor at a volunteer's
 observatory for a few weeks.
 
+**All-sky cameras** join the same way: their owners are asked for the raw data
+their setup already records (star counts, sky brightness, an attached infrared
+sensor), sent by choice. The network does not download or analyse images from
+cameras' public pages (decided 23 November 2026): each camera would need its own
+masking and calibration, and frames of several MB would load the owner's home
+connection. The format is settled with the first owner who wants to send.
+
 #### 3.1.1 Two ways to reach an ASCOM sensor
 
 ASCOM's ObservingConditions interface has properties for sky temperature,
