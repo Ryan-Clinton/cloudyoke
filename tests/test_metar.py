@@ -135,5 +135,30 @@ class BoxTest(unittest.TestCase):
         self.assertEqual(len(metar.unique_records([CAVOK, dict(CAVOK), corrected])), 2)
 
 
+class NamesTest(unittest.TestCase):
+    """The AWC cuts some names short ("Paris/Le Bourge Arpt"); the index gets the checked full name."""
+
+    def test_a_clipped_name_is_written_in_full(self):
+        with tempfile.TemporaryDirectory() as d:
+            metar.note_positions(d, [{"icaoId": "LFPB", "name": "Paris/Le Bourge Arpt", "lat": 48.97, "lon": 2.44},
+                                     {"icaoId": "LFBN", "name": "Niort/Souche ", "lat": 46.31, "lon": -0.39},
+                                     {"icaoId": "EGAA", "name": "Belfast Intl, NI, GB", "lat": 54.66, "lon": -6.22}])
+            got = {k: v["name"] for k, v in metar.registry.references(d).items()}
+            self.assertEqual(got, {"LFPB": "Paris/Le Bourget Arpt", "LFBN": "Niort/Souche", "EGAA": "Belfast Intl"})
+
+    def test_a_clipped_name_already_kept_is_put_right_once(self):
+        with tempfile.TemporaryDirectory() as d:
+            metar.registry.note_references(d, {"LFPB": {"kind": "metar", "name": "Paris/Le Bourge Arpt", "lat": 48.97, "lon": 2.44},
+                                               "EGAE": {"kind": "metar", "name": "City of Derry", "lat": 55.04, "lon": -7.16}})
+            metar.note_positions(d, [{"icaoId": "EGAE", "name": "Londonderry/Eglinton", "lat": 55.04, "lon": -7.16}])
+            index = Path(d) / "reference" / "index.json"
+            got = metar.registry.references(d)
+            self.assertEqual(got["LFPB"], {"kind": "metar", "name": "Paris/Le Bourget Arpt", "lat": 48.97, "lon": 2.44})
+            self.assertEqual(got["EGAE"]["name"], "City of Derry", "a name not in the fixes is left alone")
+            before = index.stat().st_mtime_ns
+            metar.note_positions(d, [])
+            self.assertEqual(index.stat().st_mtime_ns, before, "nothing rewritten once it's right")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -31,6 +31,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+import airport_names
 import registry
 
 API = "https://aviationweather.gov/api/data/metar"
@@ -199,12 +200,16 @@ def unique_records(records):
 
 def note_positions(root, records):
     """Each new airport's name and position in the reference index, so pages can say how far it is from a site.
-    One already there is left alone, so two feeds spelling a name differently can't keep rewriting the index."""
+    One already there is left alone, so two feeds spelling a name differently can't keep rewriting the index,
+    except to put right a name the AWC cut short (airport_names.FIXES)."""
     known = registry.references(root)
-    registry.note_references(root, {m["icaoId"]: {"kind": "metar", "name": (m.get("name") or m["icaoId"]).split(",")[0],
+    registry.note_references(root, {m["icaoId"]: {"kind": "metar", "name": airport_names.name(m["icaoId"], m.get("name")),
                                                    "lat": m["lat"], "lon": m["lon"]}
                                     for m in records if m.get("icaoId") and m.get("lat") is not None
                                     and m["icaoId"] not in known})
+    fixed = {k: dict(known[k], name=v) for k, v in airport_names.FIXES.items()
+             if k in known and known[k].get("kind") == "metar" and known[k].get("name") != v}
+    registry.note_references(root, fixed)
 
 
 def cache_number(text):
