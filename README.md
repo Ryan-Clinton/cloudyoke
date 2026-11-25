@@ -22,7 +22,7 @@ the ESP32's isn't. Next milestone:
 |---|---|
 | Phase | First stations being built; joining open |
 | Stations online | 0 |
-| Airports collected | Over 3,100, across the UK, Isle of Man, Ireland, USA, Canada and Australia |
+| Airports collected | Over 3,200, across the UK, Isle of Man, Ireland, France, USA, Canada and Australia |
 | Ceilometers collected | All 14 of Met Éireann's |
 | Satellite verdicts | Each registered site, every 10 minutes |
 
@@ -31,7 +31,7 @@ the ESP32's isn't. Next milestone:
 Before any station exists, the server keeps measurements from sensors already
 running, as references to check stations against:
 
-- **Airport reports (METAR)** from every airport in those six countries, every
+- **Airport reports (METAR)** from every airport in those seven countries, every
   10 minutes. They are kept with their raw text. Codes like NCD, NSC and CAVOK
   are never counted as clear, because most airport sensors can't see high cloud.
 - **Met Éireann's ceilometers:** cloud-base readings every 15 seconds, with

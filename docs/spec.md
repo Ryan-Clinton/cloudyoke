@@ -275,8 +275,8 @@ reflashing.
     compared with the sensor's log during stage 1. That is an analysis done
     once, not a feed: the network never reads telescopeyoke.
   - **Airports.** METARs, typically every 30 minutes, free from aviationweather.gov
-    and collected for every airport in the UK, Isle of Man, Ireland, USA, Canada
-    and Australia (section 5.3.1).
+    and collected for every airport in the UK, Isle of Man, Ireland, France, USA,
+    Canada and Australia (section 5.3.1).
     Useful near Derry (EGAE), Dublin, Shannon and Cork, which are staffed. Two
     codes don't mean a clear sky: NCD (the ceilometer saw nothing directly
     overhead; Belfast International and Belfast City report "AUTO NCD" at night)
@@ -406,7 +406,12 @@ November 2026 the collector also keeps every airport reporting between 50°N and
 58°N, 11°W and 2°W (`metar.py --box`), Ireland across to western Britain, and
 every airport in the UK, Isle of Man, Ireland, USA, Canada and Australia, every
 10 minutes from the service's one worldwide file (`metar.py --countries`), with
-or without a site, so the history exists before anything needs it. Airports
+or without a site, so the history exists before anything needs it. France's 108
+airports joined on 25 November 2026, after feedback from Strasbourg on Meanwhile.
+France has no ceilometer feed of its own to collect: Météo-France's open
+observations (Licence Ouverte, an account needed) give total cloud in oktas once
+an hour and no cloud base, and its ceilometers' layers reach the public only
+through the airports' METARs. Airports
 that report AUTO NCD at night, as both Belfast airports do, are kept as NCD. A
 reference source is not a station: it is never on the map as one, never
 judged, and is stored apart, in `data/reference/<ICAO>/<UTC date>.jsonl`.

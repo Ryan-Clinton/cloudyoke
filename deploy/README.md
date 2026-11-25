@@ -7,7 +7,7 @@ this repository) and `/srv/cloudyoke/data`.
 |---|---|
 | `cloudyoke-metar.service` + `.timer` | Every 30 minutes: every airport in the collection box and within 150 km of each site (`server/metar.py --box ... --sites`), then all of Met Éireann's ceilometers (`server/met_eireann.py --all`), then every site's page in `/srv/cloudyoke/www` (`server/dashboard.py`), served at ryanclinton.uk/cloudyoke/live/ by the site's nginx |
 | `cloudyoke-satellite.service` + `.timer` | Every 10 minutes, the verdict of the satellite overhead for each site (`server/satellite.py`), then the pages again |
-| `cloudyoke-airports.service` + `.timer` | Every 10 minutes: the latest report from every airport in the UK, Isle of Man, Ireland, USA, Canada and Australia, from one worldwide file (`server/metar.py --countries`) |
+| `cloudyoke-airports.service` + `.timer` | Every 10 minutes: the latest report from every airport in the UK, Isle of Man, Ireland, France (from 25 November 2026), USA, Canada and Australia, from one worldwide file (`server/metar.py --countries`) |
 | `cloudyoke-housekeep.service` + `.timer` | Once a day: bundles airport and ceilometer files over 7 days old into `data/archive/airports/<date>.jsonl.bz2` and `data/archive/ceilometers/<date>.jsonl.xz`, and deletes reference and satellite data over 400 days old (`server/housekeep.py`). Never touches station readings |
 
 The collectors and housekeeping share a lock, `/srv/cloudyoke/data/.collect.lock`, so two never write the same files.
